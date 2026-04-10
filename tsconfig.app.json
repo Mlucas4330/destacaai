@@ -28,19 +28,21 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": [
-        "src/*"
+        "./src/*"
       ],
       "@shared/*": [
-        "src/shared/*"
+        "./src/shared/*"
       ],
       "@pages/*": [
-        "src/pages/*"
+        "./src/pages/*"
       ],
       "@features/*": [
-        "src/features/*"
+        "./src/features/*"
+      ],
+      "@hooks/*": [
+        "./src/hooks/*"
       ]
     }
   },

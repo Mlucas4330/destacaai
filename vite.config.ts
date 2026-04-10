@@ -9,5 +9,5 @@ export default defineConfig({
     tsconfigPaths(),
     tailwindcss(),
     react(),
-  ]
+  ],
 })

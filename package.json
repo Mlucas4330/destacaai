@@ -6,16 +6,23 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "eslint . --fix",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.68",
+    "@ai-sdk/google": "^3.0.60",
+    "@ai-sdk/openai": "^3.0.52",
     "@tailwindcss/vite": "^4.2.1",
+    "ai": "^6.0.154",
+    "framer-motion": "^12.38.0",
+    "html2pdf.js": "^0.14.0",
     "jspdf": "^4.2.0",
     "lucide-react": "^0.577.0",
     "pdfjs-dist": "^5.4.624",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.13.1",
     "tailwindcss": "^4.2.1",
     "vite-tsconfig-paths": "^6.1.1"

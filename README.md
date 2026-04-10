@@ -109,7 +109,7 @@ I acknowledge those, but accept the tradeoff for MVP simplicity.
 
 ### CV generation approach:
 
-The CV generation will use an optimized template, adapting for the specific job, without having to create structure from scratch, reducing the model's workload.
+The LLM returns structured JSON via Vercel AI SDK's `generateObject()`, validated against a Zod schema. Handlebars fills `template.html` with that data, and html2pdf converts the result to a downloadable PDF client-side.
 
 ### Retry logic:
 
@@ -162,14 +162,52 @@ src/
 
 ## Libraries
 
-- **html2pdf.js** - client-side PDF generation directly from the HTML
-  CV template, no backend required
+- **html2pdf.js** - client-side PDF generation from the filled HTML CV template,
+  no backend required
+- **Handlebars** - HTML template engine used to inject structured CV data
+  into `template.html`
+- **Vercel AI SDK** (`ai`, `@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`) -
+  provider abstraction for LLM calls; `generateObject()` returns structured JSON
+  validated against a Zod schema; switching providers requires changing only the
+  model constructor, keeping the rest of the codebase provider-agnostic
+- **Zod** - schema validation for structured output via Vercel AI SDK
 - **Tailwind CSS** - utility-first styling
 - **ESLint** - static analysis and code consistency
+- **Lucide React** - beautiful icons
+- **React Hot Toast** - for notifications
+- **Framer Motion** - for animations
 - **React Router DOM** - navigation between Home and Config screens
-- **LangChain** - used for its TypeScript interfaces and provider
-  abstraction. Switching LLM providers requires changing only the
-  model constructor, keeping the rest of the codebase provider-agnostic
+
+---
+
+## Styles
+
+**Tailwind CSS v4** with `@theme` tokens for all design decisions — 
+no custom CSS files, no constant variables. All styles are colocated 
+with components using utility classes.
+
+**Design tokens:**
+- Warm off-white background with dark navy text and yellow as the primary accent
+- Typography: DM Sans (UI) + DM Mono (code/keys)
+- Border radius: xl to 3xl - rounded buttons and cards throughout
+- Popup constrained to 360px width
+
+**Motion:** Framer Motion handles all transitions - button press feedback 
+with `whileTap`, page transitions with `AnimatePresence`, and list item 
+stagger animations on mount.
+
+**Notifications:** React Hot Toast with custom styling matching the dark 
+theme, positioned at the bottom center of the popup.
+
+## Code Rules
+
+- UI components must not contain business logic. Services, LLM calls 
+  and data transformations belong in the feature's service or custom hooks.
+- Helper functions that are used by a single component can live in the 
+  same file. If used by two or more, move to a shared location.
+- Config constants (providers, limits, feature flags) belong in 
+  `@shared/constants.ts`, not inside components.
+  No external style constant files.
 
 ---
 
