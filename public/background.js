@@ -43,13 +43,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     chrome.action.openPopup()
       .then(() => sendResponse({ ok: true }))
       .catch(() => {
-        // Gesture context expired — show badge so user knows to click the icon
         chrome.action.setBadgeText({ text: '!' })
         chrome.action.setBadgeBackgroundColor({ color: '#e8d96a' })
         setTimeout(() => chrome.action.setBadgeText({ text: '' }), 30000)
-        sendResponse({ ok: true }) // data is saved; user clicks the icon manually
+        sendResponse({ ok: true })
       })
   })
 
-  return true // keep message channel open for async sendResponse
+  return true
 })
