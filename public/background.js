@@ -33,3 +33,23 @@ chrome.contextMenus.onClicked.addListener((info) => {
     })
   }
 })
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type !== 'DESTACAAI_CAPTURE') return false
+
+  const { description } = message.payload
+
+  chrome.storage.local.set({ pendingDescription: description }, () => {
+    chrome.action.openPopup()
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => {
+        // Gesture context expired — show badge so user knows to click the icon
+        chrome.action.setBadgeText({ text: '!' })
+        chrome.action.setBadgeBackgroundColor({ color: '#e8d96a' })
+        setTimeout(() => chrome.action.setBadgeText({ text: '' }), 30000)
+        sendResponse({ ok: true }) // data is saved; user clicks the icon manually
+      })
+  })
+
+  return true // keep message channel open for async sendResponse
+})

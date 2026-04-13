@@ -66,7 +66,14 @@ const AddJob = ({ onSave }: AddJobProps) => {
       </div>
 
       <div className='flex gap-2'>
-        <Button variant='secondary' onClick={() => navigate('/')} className='flex-1'>
+        <Button
+          variant='secondary'
+          onClick={() => {
+            chrome.storage.local.remove(['pendingDescription', 'pendingTitle', 'pendingCompany'])
+            navigate('/')
+          }}
+          className='flex-1'
+        >
           Cancel
         </Button>
         <Button type='submit' onClick={saveJob} disabled={!isValid} className='flex-1'>

@@ -1,9 +1,9 @@
-import ApiKeyInput from './ApiKeyInput'
 import CVUpload from './CVUpload'
 import useConfig from '../hooks/useConfig'
 import useCV from '../hooks/useCV'
 import Button from '@shared/components/Button'
 import { PROVIDERS } from '@shared/constants'
+import Input from '@/shared/components/Input'
 
 const providerVariants = {
   active: 'border-accent-text bg-accent text-accent-text',
@@ -32,7 +32,13 @@ const ConfigForm = () => {
         </div>
       </div>
 
-      <ApiKeyInput value={config.apiKey} onChange={setApiKey} />
+      <Input
+        label='API Key'
+        type='password'
+        value={config.apiKey}
+        onChange={setApiKey}
+        placeholder='sk-...'
+      />
 
       <CVUpload
         fileName={fileName}

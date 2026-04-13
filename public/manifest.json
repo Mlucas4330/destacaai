@@ -3,7 +3,17 @@
   "name": "DestacaAI",
   "version": "0.1.0",
   "description": "Generate custom CVs using AI",
-  "permissions": ["storage", "contextMenus", "alarms"],
+  "permissions": ["storage", "contextMenus", "alarms", "activeTab"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/jobs/*",
+        "https://linkedin.com/jobs/*"
+      ],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "host_permissions": [
     "https://api.openai.com/*",
     "https://generativelanguage.googleapis.com/*",

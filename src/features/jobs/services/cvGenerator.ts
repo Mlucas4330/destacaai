@@ -46,8 +46,6 @@ async function extractTextFromPDF(buffer: ArrayBuffer): Promise<string> {
   return pages.join('\n\n')
 }
 
-
-
 export async function extractJobMetadata(
   description: string,
   config: Config,
@@ -60,6 +58,7 @@ export async function extractJobMetadata(
       output: Output.object({
         schema: JobMetadataSchema,
       }),
+      temperature: 0.5,
       system: extractorPrompt.default,
       prompt: description,
     })
@@ -85,7 +84,7 @@ export async function generateCV(
       output: Output.object({
         schema: CVDataSchema,
       }),
-      temperature: 0.5,
+      temperature: 0,
       system: cvPrompt.default,
       prompt: `[Original CV]:\n${cvText}\n\n[Job Description]:\n${jobDescription}`,
     })
