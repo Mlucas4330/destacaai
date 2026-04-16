@@ -2,9 +2,9 @@ import { generateText, APICallError, Output } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { createElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
-import CVTemplate from '../components/CVTemplate'
+import { createElement, type ReactElement } from 'react'
+import { pdf, type DocumentProps } from '@react-pdf/renderer'
+import CVTemplatePDF from '../components/CVTemplatePDF'
 import type { Config } from '@shared/types'
 import { CVDataSchema, JobMetadataSchema } from '@shared/schemas'
 import { z } from 'zod'
@@ -72,7 +72,7 @@ export async function generateCV(
   cvBuffer: ArrayBuffer,
   jobDescription: string,
   config: Config,
-): Promise<{ html: string; candidateName: string }> {
+): Promise<{ cvData: z.infer<typeof CVDataSchema>; candidateName: string }> {
   const cvText = await extractTextFromPDF(cvBuffer)
 
   let output: z.infer<typeof CVDataSchema>
@@ -96,21 +96,18 @@ export async function generateCV(
   }
 
   const candidateName = output.name.replaceAll(' ', '_').toLocaleLowerCase()
-  const html = renderToStaticMarkup(createElement(CVTemplate, { data: output }))
-  return { html, candidateName }
+  return { cvData: output, candidateName }
 }
 
-export async function downloadCV(html: string, filename: string): Promise<void> {
+export async function downloadCV(cvData: z.infer<typeof CVDataSchema>, filename: string): Promise<void> {
   try {
-    const { default: html2pdf } = await import('html2pdf.js')
-    await html2pdf()
-      .set({
-        filename,
-        html2canvas: { scale: 2, useCORS: true, windowWidth: 794 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      })
-      .from(html)
-      .save()
+    const blob = await pdf(createElement(CVTemplatePDF, { data: cvData }) as unknown as ReactElement<DocumentProps>).toBlob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     throw new Error(message)

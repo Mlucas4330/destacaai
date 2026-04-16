@@ -44,7 +44,7 @@ const JobList = ({ jobs, onDelete, onGenerate, onClearAll, generatedCVs }: JobLi
               job={job}
               onDelete={onDelete}
               onGenerate={onGenerate}
-              generatedHTML={generatedCVs[job.id] ?? null}
+              generatedData={generatedCVs[job.id] ?? null}
             />
           ))}
         </AnimatePresence>

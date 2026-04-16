@@ -41,9 +41,9 @@ const GenerateCV = ({ onSaveCV }: GenerateCVProps) => {
         if (!buffer) throw new Error('No CV uploaded. Please upload your CV in Settings.')
         if (!config.apiKey) throw new Error('No API key configured. Please add one in Settings.')
 
-        const { html, candidateName } = await generateCV(buffer, job.description, config)
-        onSaveCV(job.id, JSON.stringify({ html, candidateName }))
-        await downloadCV(html, `${candidateName}_cv.pdf`)
+        const { cvData, candidateName } = await generateCV(buffer, job.description, config)
+        onSaveCV(job.id, JSON.stringify({ cvData, candidateName }))
+        await downloadCV(cvData, `${candidateName}_cv.pdf`)
         navigate('/')
       } catch (err) {
         toast.error(errorMessage(err))

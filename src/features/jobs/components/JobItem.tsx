@@ -9,7 +9,7 @@ interface JobItemProps {
   job: Job
   onDelete: (id: string) => void
   onGenerate: (id: string) => void
-  generatedHTML: string | null
+  generatedData: string | null
 }
 
 const formatDate = (timestamp: number) => {
@@ -20,11 +20,11 @@ const formatDate = (timestamp: number) => {
   return `${days} days ago`
 }
 
-const JobItem = ({ job, onDelete, onGenerate, generatedHTML }: JobItemProps) => {
+const JobItem = ({ job, onDelete, onGenerate, generatedData }: JobItemProps) => {
   const handleDownload = async () => {
-    if (!generatedHTML) return
-    const { html, candidateName } = JSON.parse(generatedHTML)
-    await downloadCV(html, `${candidateName}_cv.pdf`)
+    if (!generatedData) return
+    const { cvData, candidateName } = JSON.parse(generatedData)
+    await downloadCV(cvData, `${candidateName}_cv.pdf`)
   }
 
   return (
@@ -42,7 +42,7 @@ const JobItem = ({ job, onDelete, onGenerate, generatedHTML }: JobItemProps) => 
         <p className='text-xs text-navy-muted mt-0.5 opacity-60'>{formatDate(job.createdAt)}</p>
       </div>
       <div className='flex items-center gap-1 shrink-0'>
-        {generatedHTML
+        {generatedData
           ? (
             <Button variant='primary' onClick={handleDownload} className='text-xs px-3 py-1.5'>
               Download CV
