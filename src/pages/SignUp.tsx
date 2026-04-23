@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuthContext } from '@features/auth/context/AuthContext'
 import Button from '@shared/components/Button'
+import Input from '@shared/components/Input'
 
 const API_URL = import.meta.env.VITE_API_URL as string
 
@@ -47,25 +48,25 @@ const SignUp = () => {
         <p className='text-xs text-navy-muted mt-0.5'>Start using DestacAI for free</p>
       </div>
       <form onSubmit={handleSubmit} className='flex flex-col gap-3'>
+        <Input
+          id='email'
+          label='Email'
+          type='email'
+          value={email}
+          onChange={setEmail}
+          autoComplete='email'
+          required
+        />
         <div className='flex flex-col gap-1'>
-          <label className='text-xs font-medium text-navy-muted'>Email</label>
-          <input
-            type='email'
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className='rounded-xl border border-border bg-surface px-3 py-2 text-sm text-navy outline-none focus:border-navy-muted'
-          />
-        </div>
-        <div className='flex flex-col gap-1'>
-          <label className='text-xs font-medium text-navy-muted'>Password</label>
-          <input
+          <Input
+            id='password'
+            label='Password'
             type='password'
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
+            autoComplete='new-password'
             required
             minLength={8}
-            className='rounded-xl border border-border bg-surface px-3 py-2 text-sm text-navy outline-none focus:border-navy-muted'
           />
           <p className='text-xs text-navy-muted'>Minimum 8 characters</p>
         </div>
