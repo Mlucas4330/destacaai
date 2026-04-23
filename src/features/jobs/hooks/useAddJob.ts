@@ -1,47 +1,53 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Job, Config } from '@shared/types'
-import { extractJobMetadata } from '@features/jobs/services/cvGenerator'
+import { useCreateJob } from './useJobs'
+import { useAuthContext } from '@features/auth/context/AuthContext'
+import { createApiClient } from '@lib/api'
+import type { Job } from '@shared/types'
+import { STORAGE_KEYS } from '@shared/constants'
 
 interface PendingStorage {
   pendingDescription?: string
   pendingTitle?: string
   pendingCompany?: string
-  config?: Config
 }
 
 const useAddJob = (onSave: (job: Job) => void) => {
   const [description, setDescription] = useState('')
   const [title, setTitle] = useState('')
   const [company, setCompany] = useState('')
+  const [isExtracting, setIsExtracting] = useState(false)
+
+  const createJob = useCreateJob()
+  const { getToken } = useAuthContext()
 
   useEffect(() => {
+    const api = createApiClient(getToken)
     chrome.storage.local.get(
-      ['pendingDescription', 'pendingTitle', 'pendingCompany', 'config'],
-      (result: PendingStorage) => {
-        if (result.pendingDescription) setDescription(result.pendingDescription)
-        if (result.pendingTitle) setTitle(result.pendingTitle)
-        if (result.pendingCompany) setCompany(result.pendingCompany)
+      [STORAGE_KEYS.PENDING_DESCRIPTION, STORAGE_KEYS.PENDING_TITLE, STORAGE_KEYS.PENDING_COMPANY],
+      async (result: PendingStorage) => {
+        const desc = result.pendingDescription ?? ''
+        const pendingTitle = result.pendingTitle ?? ''
+        const pendingCompany = result.pendingCompany ?? ''
 
-        if (
-          result.pendingDescription &&
-          !result.pendingTitle &&
-          !result.pendingCompany &&
-          result.config?.apiKey
-        ) {
-          extractJobMetadata(result.pendingDescription, result.config).then(({ title, company }) => {
-            if (title) {
-              setTitle(title)
-              chrome.storage.local.set({ pendingTitle: title })
-            }
-            if (company) {
-              setCompany(company)
-              chrome.storage.local.set({ pendingCompany: company })
-            }
-          })
+        if (desc) setDescription(desc)
+        if (pendingTitle) setTitle(pendingTitle)
+        if (pendingCompany) setCompany(pendingCompany)
+
+        if (desc && (!pendingTitle || !pendingCompany)) {
+          setIsExtracting(true)
+          try {
+            const extracted = await api.post<{ title: string; company: string }>('/jobs/extract', { description: desc })
+            if (!pendingTitle && extracted.title) setTitle(extracted.title)
+            if (!pendingCompany && extracted.company) setCompany(extracted.company)
+          } catch {
+            // extraction failure is non-fatal — user can fill in manually
+          } finally {
+            setIsExtracting(false)
+          }
         }
       },
     )
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const persistField = useCallback((field: string, value: string) => {
     chrome.storage.local.set({ [field]: value })
@@ -49,34 +55,35 @@ const useAddJob = (onSave: (job: Job) => void) => {
 
   const updateTitle = useCallback((value: string) => {
     setTitle(value)
-    persistField('pendingTitle', value)
+    persistField(STORAGE_KEYS.PENDING_TITLE, value)
   }, [persistField])
 
   const updateCompany = useCallback((value: string) => {
     setCompany(value)
-    persistField('pendingCompany', value)
+    persistField(STORAGE_KEYS.PENDING_COMPANY, value)
   }, [persistField])
 
   const updateDescription = useCallback((value: string) => {
     setDescription(value)
-    persistField('pendingDescription', value)
+    persistField(STORAGE_KEYS.PENDING_DESCRIPTION, value)
   }, [persistField])
 
   const saveJob = useCallback(() => {
-    const job: Job = {
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      company: company.trim(),
-      description: description.trim(),
-      createdAt: Date.now(),
-    }
-    onSave(job)
-    chrome.storage.local.remove(['pendingDescription', 'pendingTitle', 'pendingCompany'])
-  }, [title, company, description, onSave])
+    createJob.mutate(
+      { title: title.trim(), company: company.trim(), description: description.trim() },
+      {
+        onSuccess: (job) => {
+          chrome.storage.local.remove([STORAGE_KEYS.PENDING_DESCRIPTION, STORAGE_KEYS.PENDING_TITLE, STORAGE_KEYS.PENDING_COMPANY])
+          onSave(job)
+        },
+      },
+    )
+  }, [title, company, description, createJob, onSave])
 
   const isValid = title.trim().length > 0 && company.trim().length > 0 && description.trim().length > 0
+  const isPending = createJob.isPending
 
-  return { title, company, description, updateTitle, updateCompany, updateDescription, saveJob, isValid }
+  return { title, company, description, updateTitle, updateCompany, updateDescription, saveJob, isValid, isPending, isExtracting }
 }
 
 export default useAddJob

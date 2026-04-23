@@ -1,8 +1,18 @@
-import clearData from '@/features/config/services/clearData'
 import ConfigForm from '@features/config/components/ConfigForm'
+import { useClearJobs } from '@features/jobs/hooks/useJobs'
+import { useDeleteCV } from '@features/config/hooks/useUser'
 import Button from '@shared/components/Button'
 
 const Config = () => {
+  const clearJobs = useClearJobs()
+  const deleteCV = useDeleteCV()
+
+  const handleClearAll = () => {
+    clearJobs.mutate()
+    deleteCV.mutate()
+    chrome.storage.local.clear()
+  }
+
   return (
     <div className='flex flex-col gap-6 p-4'>
       <div>
@@ -13,7 +23,7 @@ const Config = () => {
       <ConfigForm />
 
       <div className='border-t border-border pt-4'>
-        <Button variant='danger' onClick={clearData} className='w-full'>
+        <Button variant='danger' onClick={handleClearAll} className='w-full'>
           Clear all data
         </Button>
       </div>

@@ -1,6 +1,6 @@
 import { Document, Page, View, Text, Link, StyleSheet } from '@react-pdf/renderer'
 import type { z } from 'zod'
-import type { CVDataSchema } from '@shared/schemas'
+import type { CVDataSchema } from '../shared/schemas.js'
 
 type CVData = z.infer<typeof CVDataSchema>
 

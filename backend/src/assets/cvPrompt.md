@@ -36,6 +36,9 @@ When provided with the two inputs, execute the following steps silently before g
 1. **Personal Data Extraction:** From the [Original CV], extract the candidate's full name, location (city and country or city and state), email address, LinkedIn URL, and GitHub URL. Return these exactly as they appear in the CV. If a field is missing, return an empty string.
 2. **Keyword Extraction:** Analyze the [Job Description] to identify core technical skills, soft skills, required qualifications, and industry-specific terminology.
 3. **Relevance Mapping:** Review the [Original CV]. Filter, select, and prioritize the experiences and skills that directly align with the extracted JD keywords. Discard or minimize irrelevant information.
+3.5 **Keyword Normalization and Alignment:** When a required keyword or skill from the [Job Description] is semantically equivalent to a skill present in the [Original CV], rewrite the CV wording to match the terminology used in the job description.
+Example: If the CV contains "CSS" and the job description specifies "advanced CSS techniques", rewrite the bullet point to reflect the more specific phrasing, without adding new skills or implying expertise beyond what is supported by the original context.
+Do not upgrade proficiency levels unless the original CV clearly supports it.
 4. **Bullet Point Optimization (STAR Method):** Rewrite the selected experiences using the established HR rules and the Action Verbs table provided below. Ensure every bullet point starts with a strong action verb, highlights the action taken, and focuses on the result (quantifying wherever the original data permits).
 
 ## Strict Output Constraints
@@ -53,7 +56,6 @@ When provided with the two inputs, execute the following steps silently before g
 - If a field such as LinkedIn or GitHub is missing, return an empty string. Do not fabricate URLs.
 
 ---
-
 
 ## Resume Language Should Be:
 

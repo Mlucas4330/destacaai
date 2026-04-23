@@ -7,7 +7,6 @@ interface JobListProps {
   onDelete: (id: string) => void
   onGenerate: (id: string) => void
   onClearAll: () => void
-  generatedCVs: Record<string, string>
 }
 
 const listVariants = {
@@ -17,11 +16,11 @@ const listVariants = {
   },
 }
 
-const JobList = ({ jobs, onDelete, onGenerate, onClearAll, generatedCVs }: JobListProps) => {
+const JobList = ({ jobs, onDelete, onGenerate, onClearAll }: JobListProps) => {
   return (
     <div className='flex flex-col gap-2 p-3'>
       <div className='flex items-center justify-between mb-1'>
-        <p className='text-xs text-navy-muted'>{jobs.length}/5 jobs saved</p>
+        <p className='text-xs text-navy-muted'>{jobs.length} job{jobs.length !== 1 ? 's' : ''} saved</p>
         <motion.button
           type='button'
           onClick={onClearAll}
@@ -44,7 +43,6 @@ const JobList = ({ jobs, onDelete, onGenerate, onClearAll, generatedCVs }: JobLi
               job={job}
               onDelete={onDelete}
               onGenerate={onGenerate}
-              generatedData={generatedCVs[job.id] ?? null}
             />
           ))}
         </AnimatePresence>

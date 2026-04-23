@@ -1,44 +1,69 @@
-import { useState, useCallback, useEffect } from 'react'
-import type { Job } from '@shared/types'
-import { MAX_JOBS } from '@shared/constants'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuthContext } from '@features/auth/context/AuthContext'
+import toast from 'react-hot-toast'
+import { createApiClient } from '@lib/api'
+import type { Job, JobStatus } from '@shared/types'
+import { POLLING_INTERVAL_MS } from '@shared/constants'
 
-const useJobs = () => {
-  const [jobs, setJobs] = useState<Job[]>([])
-
-  useEffect(() => {
-    chrome.storage.local.get('jobs', (result: { jobs?: Job[] }) => {
-      setJobs(result.jobs ?? [])
-    })
-  }, [])
-
-  const addJob = useCallback((job: Job) => {
-    setJobs((prev) => {
-      if (prev.length >= MAX_JOBS) {
-        throw new Error(`You can save up to ${MAX_JOBS} jobs.`)
-      }
-      if (prev.some((j) => j.id === job.id)) {
-        throw new Error('This job is already saved.')
-      }
-      const updated = [job, ...prev]
-      chrome.storage.local.set({ jobs: updated })
-      return updated
-    })
-  }, [])
-
-  const deleteJob = useCallback((id: string) => {
-    setJobs((prev) => {
-      const updated = prev.filter((j) => j.id !== id)
-      chrome.storage.local.set({ jobs: updated })
-      return updated
-    })
-  }, [])
-
-  const clearJobs = useCallback(() => {
-    setJobs([])
-    chrome.storage.local.set({ jobs: [] })
-  }, [])
-
-  return { jobs, addJob, deleteJob, clearJobs }
+function useApi() {
+  const { getToken } = useAuthContext()
+  return createApiClient(getToken)
 }
 
-export default useJobs
+export function useJobs() {
+  const api = useApi()
+  return useQuery({
+    queryKey: ['jobs'],
+    queryFn: () => api.get<{ jobs: Job[] }>('/jobs').then((r) => r.jobs),
+    refetchInterval: (query) => {
+      const jobs = query.state.data
+      if (!jobs) return false
+      const hasPending = jobs.some(
+        (j) => j.atsStatus === 'queued' || j.atsStatus === 'processing',
+      )
+      return hasPending ? POLLING_INTERVAL_MS : false
+    },
+  })
+}
+
+export function useCreateJob() {
+  const api = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { title: string; company: string; description: string }) =>
+      api.post<Job>('/jobs', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs'] }),
+    onError: () => toast.error('Failed to save job. Please try again.'),
+  })
+}
+
+export function useDeleteJob() {
+  const api = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (jobId: string) => api.delete(`/jobs/${jobId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs'] }),
+    onError: () => toast.error('Failed to delete job. Please try again.'),
+  })
+}
+
+export function useClearJobs() {
+  const api = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete('/jobs'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs'] }),
+    onError: () => toast.error('Failed to clear jobs. Please try again.'),
+  })
+}
+
+export function useUpdateJobStatus() {
+  const api = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ jobId, status }: { jobId: string; status: JobStatus }) =>
+      api.patch<{ id: string; status: JobStatus }>(`/jobs/${jobId}/status`, { status }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs'] }),
+    onError: () => toast.error('Failed to update status. Please try again.'),
+  })
+}

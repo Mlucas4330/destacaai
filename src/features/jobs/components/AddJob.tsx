@@ -1,21 +1,12 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import type { Job } from '@shared/types'
 import Input from '@shared/components/Input'
 import Button from '@shared/components/Button'
 import useAddJob from '../hooks/useAddJob'
+import { STORAGE_KEYS } from '@shared/constants'
 
-interface AddJobProps {
-  onSave: (job: Job) => void
-}
-
-const AddJob = ({ onSave }: AddJobProps) => {
+const AddJob = () => {
   const navigate = useNavigate()
-
-  const handleSave = (job: Job) => {
-    onSave(job)
-    navigate(`/generate/${job.id}`)
-  }
 
   const {
     title,
@@ -26,7 +17,9 @@ const AddJob = ({ onSave }: AddJobProps) => {
     updateDescription,
     saveJob,
     isValid,
-  } = useAddJob(handleSave)
+    isPending,
+    isExtracting,
+  } = useAddJob((job) => navigate(`/generate/${job.id}`))
 
   return (
     <motion.div
@@ -69,15 +62,15 @@ const AddJob = ({ onSave }: AddJobProps) => {
         <Button
           variant='secondary'
           onClick={() => {
-            chrome.storage.local.remove(['pendingDescription', 'pendingTitle', 'pendingCompany'])
+            chrome.storage.local.remove([STORAGE_KEYS.PENDING_DESCRIPTION, STORAGE_KEYS.PENDING_TITLE, STORAGE_KEYS.PENDING_COMPANY])
             navigate('/')
           }}
           className='flex-1'
         >
           Cancel
         </Button>
-        <Button type='submit' onClick={saveJob} disabled={!isValid} className='flex-1'>
-          Save Job
+        <Button type='submit' onClick={saveJob} disabled={!isValid || isPending || isExtracting} className='flex-1'>
+          {isPending ? 'Saving...' : isExtracting ? 'Extracting...' : 'Save Job'}
         </Button>
       </div>
     </motion.div>

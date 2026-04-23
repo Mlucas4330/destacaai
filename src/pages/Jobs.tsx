@@ -3,30 +3,33 @@ import { useNavigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import EmptyState from '@features/jobs/components/EmptyState'
 import JobList from '@features/jobs/components/JobList'
-import useJobs from '@features/jobs/hooks/useJobs'
-import useGeneratedCVs from '@features/jobs/hooks/useGeneratedCVs'
+import { useJobs, useDeleteJob, useClearJobs } from '@features/jobs/hooks/useJobs'
+import { STORAGE_KEYS } from '@shared/constants'
 
 const Jobs = () => {
   const navigate = useNavigate()
-  const { jobs, deleteJob, clearJobs } = useJobs()
-  const { cvs, deleteCV, clearCVs } = useGeneratedCVs()
+  const { data: jobs = [], isLoading } = useJobs()
+  const deleteJob = useDeleteJob()
+  const clearJobs = useClearJobs()
 
   useEffect(() => {
-    chrome.storage.local.get('pendingDescription', (result: { pendingDescription?: string }) => {
-      if (result.pendingDescription) {
-        navigate('/add-job')
-      }
+    chrome.storage.local.get(STORAGE_KEYS.PENDING_DESCRIPTION, (result: { pendingDescription?: string }) => {
+      if (result.pendingDescription) navigate('/add-job')
     })
+
+    const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
+      if (changes[STORAGE_KEYS.PENDING_DESCRIPTION]?.newValue) navigate('/add-job')
+    }
+    chrome.storage.onChanged.addListener(listener)
+    return () => chrome.storage.onChanged.removeListener(listener)
   }, [navigate])
 
-  const handleDelete = (id: string) => {
-    deleteJob(id)
-    deleteCV(id)
-  }
-
-  const handleClearAll = () => {
-    clearJobs()
-    clearCVs()
+  if (isLoading) {
+    return (
+      <div className='flex items-center justify-center h-full'>
+        <div className='w-5 h-5 border-2 border-accent rounded-full border-t-transparent animate-spin' />
+      </div>
+    )
   }
 
   return (
@@ -35,10 +38,9 @@ const Jobs = () => {
         <JobList
           key='list'
           jobs={jobs}
-          onDelete={handleDelete}
+          onDelete={(id) => deleteJob.mutate(id)}
           onGenerate={(id) => navigate(`/generate/${id}`)}
-          onClearAll={handleClearAll}
-          generatedCVs={cvs}
+          onClearAll={() => clearJobs.mutate()}
         />
       ) : (
         <EmptyState key='empty' />
