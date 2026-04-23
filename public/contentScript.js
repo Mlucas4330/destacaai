@@ -11,7 +11,7 @@ function attach() {
   el.style.outlineOffset = '6px'
   el.style.borderRadius = '8px'
   el.style.cursor = 'pointer'
-  el.setAttribute('title', 'Click to add to DestacaAI')
+  el.setAttribute('title', 'Click to add to DestacAI')
   el.addEventListener('click', handleClick)
 }
 
@@ -33,7 +33,7 @@ function handleClick(e) {
   const description = currentTarget.innerText.trim()
 
   chrome.runtime.sendMessage({
-    type: 'DESTACAAI_CAPTURE',
+    type: 'DESTACAI_CAPTURE',
     payload: { description },
   })
 

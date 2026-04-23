@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "DestacaAI",
+  "name": "DestacAI",
   "version": "2.0.0",
   "description": "Generate custom CVs using AI",
   "permissions": ["storage", "contextMenus", "activeTab", "tabs", "alarms"],
@@ -25,7 +25,7 @@
   },
   "action": {
     "default_popup": "index.html",
-    "default_title": "DestacaAI",
+    "default_title": "DestacAI",
     "default_icon": {
       "128": "icon.png"
     }

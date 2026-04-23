@@ -1,6 +1,6 @@
-# DestacaAI
+# DestacAI
 
-DestacaAI is a Chrome extension micro-SaaS that generates a custom CV for each job you apply to, optimized for ATS filters, with a built-in score that tells you exactly why your current CV isn't making the cut.
+DestacAI is a Chrome extension micro-SaaS that generates a custom CV for each job you apply to, optimized for ATS filters, with a built-in score that tells you exactly why your current CV isn't making the cut.
 
 # Problem
 
@@ -10,7 +10,7 @@ Even though you're aware of those filtering methods and manually customize your 
 
 # Solution
 
-DestacaAI reads the job description directly from LinkedIn, scores your current CV against it (0–100), and generates a tailored version that passes ATS filters - all without leaving your browser.
+DestacAI reads the job description directly from LinkedIn, scores your current CV against it (0–100), and generates a tailored version that passes ATS filters - all without leaving your browser.
 
 Template created by DevCelio: https://github.com/celiobjunior/resume-template
 
@@ -34,7 +34,7 @@ Then I evolved the project to include a full backend, authentication, ATS scorin
 
 ```mermaid
 flowchart TD
-    A([user opens destacaai]) --> B{authenticated?}
+    A([user opens destacai]) --> B{authenticated?}
 
     B -->|No| C([sign in with email/password, Google or GitHub])
     C --> D{cv uploaded?}

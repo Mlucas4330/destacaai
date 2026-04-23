@@ -12,8 +12,8 @@ function cleanupExpiredJobs() {
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
-    id: 'destacaai-capture',
-    title: 'Use as job description in DestacaAI',
+    id: 'destacai-capture',
+    title: 'Use as job description in DestacAI',
     contexts: ['selection'],
   })
   chrome.alarms.create('cleanup', { periodInMinutes: 1440 })
@@ -27,7 +27,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 })
 
 chrome.contextMenus.onClicked.addListener((info) => {
-  if (info.menuItemId === 'destacaai-capture' && info.selectionText) {
+  if (info.menuItemId === 'destacai-capture' && info.selectionText) {
     chrome.storage.local.set({ pendingDescription: info.selectionText }, () => {
       chrome.action.openPopup()
     })
@@ -35,7 +35,7 @@ chrome.contextMenus.onClicked.addListener((info) => {
 })
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type !== 'DESTACAAI_CAPTURE') return false
+  if (message.type !== 'DESTACAI_CAPTURE') return false
 
   const { description } = message.payload
 
