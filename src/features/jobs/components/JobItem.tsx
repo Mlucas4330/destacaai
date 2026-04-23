@@ -6,7 +6,6 @@ import type { Job, JobStatus } from '@shared/types'
 import Button from '@shared/components/Button'
 import IconButton from '@shared/components/IconButton'
 import toast from 'react-hot-toast'
-import { createApiClient } from '@lib/api'
 import { useUpdateJobStatus } from '../hooks/useJobs'
 import { useGenerationStatus } from '../hooks/useGenerateCV'
 import { useAtsScore } from '../hooks/useAtsScore'
@@ -55,23 +54,22 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
 
   const handleDownload = async () => {
     try {
-      const api = createApiClient(getToken)
-      const { downloadUrl } = await api.get<{ status: string; downloadUrl?: string }>(
-        `/generate/${job.id}/status`,
+      const token = await getToken()
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/generate/${job.id}/download`,
+        { headers: { Authorization: `Bearer ${token}` } },
       )
-      if (downloadUrl) {
-        const response = await fetch(downloadUrl)
-        const blob = await response.blob()
-        const blobUrl = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        const userName = user?.email.split('@')[0] ?? 'cv'
-        a.href = blobUrl
-        a.download = `${userName}_cv.pdf`
-        a.click()
-        URL.revokeObjectURL(blobUrl)
-      }
+      if (!response.ok) throw new Error('Download failed')
+      const blob = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const userName = user?.email.split('@')[0] ?? 'cv'
+      a.href = blobUrl
+      a.download = `${userName}_cv.pdf`
+      a.click()
+      URL.revokeObjectURL(blobUrl)
     } catch {
-      toast.error('Failed to get download link. Please try again.')
+      toast.error('Failed to download CV. Please try again.')
     }
   }
 
