@@ -19,7 +19,13 @@ export function useJobs() {
       const jobs = query.state.data
       if (!jobs) return false
       const hasPending = jobs.some(
-        (j) => j.atsStatus === 'queued' || j.atsStatus === 'processing',
+        (j) =>
+          j.atsStatus === 'queued' ||
+          j.atsStatus === 'processing' ||
+          j.cvGenerationStatus === 'queued' ||
+          j.cvGenerationStatus === 'processing' ||
+          j.generatedCvAtsStatus === 'queued' ||
+          j.generatedCvAtsStatus === 'processing',
       )
       return hasPending ? POLLING_INTERVAL_MS : false
     },

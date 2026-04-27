@@ -22,8 +22,9 @@ export function createApiClient(getToken: GetToken) {
       body: body ? JSON.stringify(body) : undefined,
     })
     if (!res.ok) {
-      const text = await res.text().catch(() => res.statusText)
-      throw new ApiError(res.status, text)
+      const body = await res.json().catch(() => null)
+      const message = body?.message ?? body?.error ?? res.statusText
+      throw new ApiError(res.status, message)
     }
     if (res.status === 204) return undefined as T
     return res.json() as Promise<T>
@@ -42,8 +43,9 @@ export function createApiClient(getToken: GetToken) {
         body: formData,
       })
       if (!res.ok) {
-        const text = await res.text().catch(() => res.statusText)
-        throw new ApiError(res.status, text)
+        const body = await res.json().catch(() => null)
+        const message = body?.message ?? body?.error ?? res.statusText
+        throw new ApiError(res.status, message)
       }
       return res.json() as Promise<T>
     },

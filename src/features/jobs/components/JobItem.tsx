@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trash2, ChevronDown, X } from 'lucide-react'
+import { Trash2, X } from 'lucide-react'
 import { useAuthContext } from '@features/auth/context/AuthContext'
 import type { Job, JobStatus } from '@shared/types'
 import Button from '@shared/components/Button'
@@ -26,6 +26,14 @@ const STATUS_COLORS: Record<JobStatus, string> = {
   offer: 'bg-green-100 text-green-700',
 }
 
+const STATUS_BORDER: Record<JobStatus, string> = {
+  saved: 'border-l-gray-300',
+  applied: 'border-l-accent',
+  interview: 'border-l-blue-400',
+  rejected: 'border-l-red-400',
+  offer: 'border-l-green-400',
+}
+
 const formatDate = (iso: string): string => {
   const diff = Date.now() - new Date(iso).getTime()
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
@@ -45,7 +53,8 @@ interface JobItemProps {
 
 const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
   const [showStatusMenu, setShowStatusMenu] = useState(false)
-  const [expandedAts, setExpandedAts] = useState<'uploaded' | 'generated' | null>(null)
+  const [expandedUploaded, setExpandedUploaded] = useState(false)
+  const [expandedGenerated, setExpandedGenerated] = useState(false)
   const updateStatus = useUpdateJobStatus()
   const { getToken } = useAuthContext()
 
@@ -78,9 +87,6 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
 
   const cvDone = job.cvGenerationStatus === 'done' || genStatus?.status === 'done'
 
-  const toggleAts = (side: 'uploaded' | 'generated') =>
-    setExpandedAts((prev) => (prev === side ? null : side))
-
   return (
     <motion.div
       layout
@@ -88,77 +94,52 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.18 }}
-      className='flex flex-col gap-2 p-3 rounded-xl border border-border bg-bg hover:border-navy-muted transition-colors'
+      onClick={() => setShowStatusMenu((v) => !v)}
+      className={`relative cursor-pointer flex flex-col gap-2 p-3 rounded-xl border border-border border-l-4 ${STATUS_BORDER[job.status]} bg-bg transition-colors`}
     >
       <div className='flex items-start justify-between gap-2'>
         <div className='flex-1 min-w-0'>
-          <p className='text-sm font-medium text-navy truncate'>{job.title}</p>
-          <div className='mt-1 flex flex-col gap-1 items-start'>
-            <p className='text-xs text-navy-muted truncate'>{job.company}</p>
-            <p className='text-xs text-navy-muted opacity-60'>{formatDate(job.createdAt)}</p>
+          <p className='text-sm font-medium text-navy truncate' title={job.title}>
+            {job.title}
+          </p>
+          <p className='text-xs text-navy-muted opacity-70 mt-0.5'>
+            {job.company} · {formatDate(job.createdAt)}
+          </p>
+
+          <div className='flex items-center gap-3 mt-1.5'>
             {job.atsStatus === 'queued' || job.atsStatus === 'processing' ? (
-              <p className='text-xs text-navy-muted opacity-60'>CV scoring...</p>
+              <p className='text-xs text-navy-muted opacity-60'>Base scoring...</p>
             ) : job.atsStatus === 'done' && job.atsScore !== null ? (
               <button
-                onClick={() => toggleAts('uploaded')}
+                onClick={(e) => { e.stopPropagation(); setExpandedUploaded((v) => !v) }}
                 className='text-xs font-medium text-navy-muted hover:opacity-80 transition-opacity'
               >
-                CV: <span className={scoreColor(job.atsScore)}>{job.atsScore}/100</span>
+                Base: <span className={scoreColor(job.atsScore)}>{job.atsScore}/100</span>
               </button>
             ) : job.atsStatus === 'failed' ? (
-              <p className='text-xs text-red-400 opacity-80'>CV score failed</p>
+              <p className='text-xs text-red-400 opacity-80'>Base score failed</p>
             ) : null}
 
             {job.generatedCvAtsStatus === 'queued' || job.generatedCvAtsStatus === 'processing' ? (
               <p className='text-xs text-navy-muted opacity-60'>Tailored scoring...</p>
             ) : job.generatedCvAtsStatus === 'done' && job.generatedCvAtsScore !== null ? (
               <button
-                onClick={() => toggleAts('generated')}
+                onClick={(e) => { e.stopPropagation(); setExpandedGenerated((v) => !v) }}
                 className='text-xs font-medium text-navy-muted hover:opacity-80 transition-opacity'
               >
                 Tailored: <span className={scoreColor(job.generatedCvAtsScore)}>{job.generatedCvAtsScore}/100</span>
               </button>
             ) : job.generatedCvAtsStatus === 'failed' ? (
-              <p className='text-xs text-red-400 opacity-80'>Tailored score failed</p>
+              <p className='text-xs text-red-400 opacity-80'>Tailored failed</p>
             ) : null}
           </div>
 
-          <div className='relative mt-1.5'>
-            <button
-              onClick={() => setShowStatusMenu((v) => !v)}
-              className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[job.status]}`}
-            >
-              {STATUS_LABELS[job.status]}
-              <ChevronDown size={10} />
-            </button>
-            <AnimatePresence>
-              {showStatusMenu && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.1 }}
-                  className='absolute left-0 top-full mt-1 z-10 bg-bg border border-border rounded-xl shadow-md py-1 min-w-24'
-                >
-                  {(Object.keys(STATUS_LABELS) as JobStatus[]).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => {
-                        updateStatus.mutate({ jobId: job.id, status: s })
-                        setShowStatusMenu(false)
-                      }}
-                      className='w-full text-left text-xs px-3 py-1.5 hover:bg-accent/30 transition-colors'
-                    >
-                      {STATUS_LABELS[s]}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <span className={`inline-flex mt-1.5 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[job.status]}`}>
+            {STATUS_LABELS[job.status]}
+          </span>
         </div>
 
-        <div className='flex items-center gap-1 shrink-0'>
+        <div className='flex items-center gap-1 shrink-0' onClick={(e) => e.stopPropagation()}>
           {cvDone ? (
             <Button variant='primary' onClick={handleDownload} className='text-xs px-3 py-1.5'>
               Download CV
@@ -182,8 +163,9 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
       </div>
 
       <AnimatePresence>
-        {expandedAts === 'uploaded' && job.atsExplanation && (
+        {expandedUploaded && job.atsExplanation && (
           <motion.div
+            key='uploaded'
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
@@ -191,9 +173,9 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
             className='overflow-hidden'
           >
             <div className='relative text-xs text-navy-muted bg-surface border border-border rounded-lg p-2 pr-6 leading-relaxed'>
-              <span className='font-medium text-navy'>CV: </span>{job.atsExplanation}
+              <span className='font-medium text-navy'>Base: </span>{job.atsExplanation}
               <button
-                onClick={() => setExpandedAts(null)}
+                onClick={(e) => { e.stopPropagation(); setExpandedUploaded(false) }}
                 className='absolute top-1.5 right-1.5 text-navy-muted hover:text-navy transition-colors'
                 aria-label='Close explanation'
               >
@@ -202,8 +184,9 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
             </div>
           </motion.div>
         )}
-        {expandedAts === 'generated' && job.generatedCvAtsExplanation && (
+        {expandedGenerated && job.generatedCvAtsExplanation && (
           <motion.div
+            key='generated'
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
@@ -213,12 +196,43 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
             <div className='relative text-xs text-navy-muted bg-surface border border-border rounded-lg p-2 pr-6 leading-relaxed'>
               <span className='font-medium text-navy'>Tailored: </span>{job.generatedCvAtsExplanation}
               <button
-                onClick={() => setExpandedAts(null)}
+                onClick={(e) => { e.stopPropagation(); setExpandedGenerated(false) }}
                 className='absolute top-1.5 right-1.5 text-navy-muted hover:text-navy transition-colors'
                 aria-label='Close explanation'
               >
                 <X size={12} />
               </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showStatusMenu && (
+          <motion.div
+            key='status'
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.15 }}
+            className='overflow-hidden'
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className='flex flex-wrap gap-1.5 bg-surface border border-border rounded-lg p-2'
+            >
+              {(Object.keys(STATUS_LABELS) as JobStatus[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => {
+                    updateStatus.mutate({ jobId: job.id, status: s })
+                    setShowStatusMenu(false)
+                  }}
+                  className={`text-xs px-2.5 py-0.5 rounded-full font-medium transition-opacity hover:opacity-80 ${STATUS_COLORS[s]} ${job.status === s ? 'ring-1 ring-offset-1 ring-current' : ''}`}
+                >
+                  {STATUS_LABELS[s]}
+                </button>
+              ))}
             </div>
           </motion.div>
         )}
