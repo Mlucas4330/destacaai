@@ -1,6 +1,7 @@
 import ConfigForm from '@features/config/components/ConfigForm'
 import { useClearJobs } from '@features/jobs/hooks/useJobs'
 import { useDeleteCV } from '@features/config/hooks/useUser'
+import { clearAppCache } from '@lib/cache'
 import Button from '@shared/components/Button'
 
 const Config = () => {
@@ -11,6 +12,7 @@ const Config = () => {
     clearJobs.mutate()
     deleteCV.mutate()
     chrome.storage.local.clear()
+    clearAppCache()
   }
 
   return (

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { STORAGE_KEYS } from '@shared/constants'
+import { clearAppCache } from '@lib/cache'
 
 interface AuthState {
   token: string | null
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await chrome.storage.local.remove([STORAGE_KEYS.AUTH, STORAGE_KEYS.PENDING_VERIFICATION])
+    clearAppCache()
     setAuth({ token: null, email: null })
     setPendingVerification(null)
   }

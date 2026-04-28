@@ -1,9 +1,20 @@
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { QUERY_KEYS } from '@shared/constants'
 import { useAuthContext } from '@features/auth/context/AuthContext'
 import toast from 'react-hot-toast'
 import { createApiClient } from '@lib/api'
+import { CACHE_KEYS } from '@lib/cache'
 import type { UserProfile } from '@shared/types'
+
+function readUserCache(): UserProfile | undefined {
+  try {
+    const raw = localStorage.getItem(CACHE_KEYS.USER)
+    return raw ? (JSON.parse(raw) as UserProfile) : undefined
+  } catch {
+    return undefined
+  }
+}
 
 function useApi() {
   const { getToken } = useAuthContext()
@@ -12,10 +23,23 @@ function useApi() {
 
 export function useUser() {
   const api = useApi()
-  return useQuery({
+
+  const result = useQuery({
     queryKey: [QUERY_KEYS.USER],
     queryFn: () => api.get<UserProfile>('/users/me'),
+    staleTime: 60_000,
+    initialData: readUserCache,
+    initialDataUpdatedAt: () => Number(localStorage.getItem(CACHE_KEYS.USER_TS) ?? 0),
   })
+
+  useEffect(() => {
+    if (result.data) {
+      localStorage.setItem(CACHE_KEYS.USER, JSON.stringify(result.data))
+      localStorage.setItem(CACHE_KEYS.USER_TS, String(Date.now()))
+    }
+  }, [result.data])
+
+  return result
 }
 
 export function useUploadCV() {
