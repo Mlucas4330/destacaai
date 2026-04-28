@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { Navigate } from 'react-router-dom'
 import { useAuthContext } from '@features/auth/context/AuthContext'
 
 interface AuthGateProps {
@@ -8,7 +7,7 @@ interface AuthGateProps {
 }
 
 export default function AuthGate({ children }: AuthGateProps) {
-  const { isLoaded, isSignedIn, pendingVerification } = useAuthContext()
+  const { isLoaded, isSignedIn } = useAuthContext()
   const qc = useQueryClient()
 
   useEffect(() => {
@@ -21,11 +20,6 @@ export default function AuthGate({ children }: AuthGateProps) {
         <div className='w-5 h-5 border-2 border-accent rounded-full border-t-transparent animate-spin' />
       </div>
     )
-  }
-
-  if (!isSignedIn) {
-    if (pendingVerification) return <Navigate to='/verify-code' replace />
-    return <Navigate to='/sign-in' replace />
   }
 
   return <>{children}</>

@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
-import { MemoryRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { Briefcase, Settings } from 'lucide-react'
 import Jobs from '@pages/Jobs'
@@ -14,7 +14,11 @@ import ResetPassword from '@pages/ResetPassword'
 import AddJob from '@features/jobs/components/AddJob'
 import GenerateCV from '@features/jobs/components/GenerateCV'
 import AuthGate from '@features/auth/components/AuthGate'
+import GuestLimitModal from '@features/auth/components/GuestLimitModal'
 import { AuthProvider } from '@features/auth/context/AuthContext'
+import { GuestProvider } from '@features/auth/context/GuestContext'
+import { useAuthContext } from '@features/auth/context/AuthContext'
+import { useGuestContext } from '@features/auth/context/GuestContext'
 import { queryClient } from '@lib/queryClient'
 
 const NAV_LINK_CLASS = ({ isActive }: { isActive: boolean }) =>
@@ -24,6 +28,15 @@ const NAV_LINK_CLASS = ({ isActive }: { isActive: boolean }) =>
 
 const Layout = (): React.ReactNode => {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { isSignedIn, pendingVerification } = useAuthContext()
+  const { showLimitModal } = useGuestContext()
+
+  useEffect(() => {
+    if (pendingVerification && !isSignedIn) {
+      navigate('/verify-code', { replace: true })
+    }
+  }, [pendingVerification, isSignedIn, navigate])
 
   return (
     <div className='flex flex-col h-full'>
@@ -47,6 +60,8 @@ const Layout = (): React.ReactNode => {
         </AnimatePresence>
       </div>
 
+      {showLimitModal && <GuestLimitModal />}
+
       <nav className='flex border-t border-border bg-bg'>
         <NavLink to='/' end className={NAV_LINK_CLASS}>
           <Briefcase size={18} />
@@ -65,36 +80,38 @@ const App = (): React.ReactNode => {
   return (
     <MemoryRouter>
       <AuthProvider>
-        <QueryClientProvider client={queryClient}>
-          <Routes>
-            <Route path='/sign-in' element={<SignIn />} />
-            <Route path='/sign-up' element={<SignUp />} />
-            <Route path='/verify-code' element={<VerifyCode />} />
-            <Route path='/forgot-password' element={<ForgotPassword />} />
-            <Route path='/reset-password' element={<ResetPassword />} />
-            <Route
-              path='/*'
-              element={
-                <AuthGate>
-                  <Layout />
-                </AuthGate>
-              }
+        <GuestProvider>
+          <QueryClientProvider client={queryClient}>
+            <Routes>
+              <Route path='/sign-in' element={<SignIn />} />
+              <Route path='/sign-up' element={<SignUp />} />
+              <Route path='/verify-code' element={<VerifyCode />} />
+              <Route path='/forgot-password' element={<ForgotPassword />} />
+              <Route path='/reset-password' element={<ResetPassword />} />
+              <Route
+                path='/*'
+                element={
+                  <AuthGate>
+                    <Layout />
+                  </AuthGate>
+                }
+              />
+            </Routes>
+            <Toaster
+              position='bottom-center'
+              toastOptions={{
+                duration: 2000,
+                style: {
+                  background: '#1e2333',
+                  color: '#f7f6f3',
+                  fontSize: '13px',
+                  borderRadius: '12px',
+                  maxWidth: '320px',
+                },
+              }}
             />
-          </Routes>
-          <Toaster
-            position='bottom-center'
-            toastOptions={{
-              duration: 2000,
-              style: {
-                background: '#1e2333',
-                color: '#f7f6f3',
-                fontSize: '13px',
-                borderRadius: '12px',
-                maxWidth: '320px',
-              },
-            }}
-          />
-        </QueryClientProvider>
+          </QueryClientProvider>
+        </GuestProvider>
       </AuthProvider>
     </MemoryRouter>
   )

@@ -16,6 +16,10 @@ export const STORAGE_KEYS = {
   PENDING_DESCRIPTION: 'pendingDescription',
   PENDING_TITLE: 'pendingTitle',
   PENDING_COMPANY: 'pendingCompany',
+  GUEST_ID: 'destacai_guest_id',
+  GUEST_JOBS: 'destacai_guest_jobs',
+  GUEST_GENERATIONS_USED: 'destacai_guest_generations_used',
+  GUEST_CV_R2_KEY: 'destacai_guest_cv_r2_key',
 } as const
 
 // React Query cache keys

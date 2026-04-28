@@ -1,14 +1,18 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { Sparkles } from 'lucide-react'
 import Input from '@shared/components/Input'
 import Button from '@shared/components/Button'
 import useAddJob from '../hooks/useAddJob'
 import { useUser } from '@features/config/hooks/useUser'
+import { useAuthContext } from '@features/auth/context/AuthContext'
 import { STORAGE_KEYS } from '@shared/constants'
 
 const AddJob = () => {
   const navigate = useNavigate()
   const { data: user } = useUser()
+
+  const { isSignedIn } = useAuthContext()
 
   const {
     title,
@@ -18,6 +22,7 @@ const AddJob = () => {
     updateCompany,
     updateDescription,
     saveJob,
+    extractFromDescription,
     isValid,
     isPending,
     isExtracting,
@@ -37,6 +42,7 @@ const AddJob = () => {
 
       <div className='flex flex-col gap-3'>
         <Input
+          id='job-title'
           label='Job Title'
           value={title}
           onChange={updateTitle}
@@ -44,6 +50,7 @@ const AddJob = () => {
           autoComplete='organization-title'
         />
         <Input
+          id='job-company'
           label='Company'
           value={company}
           onChange={updateCompany}
@@ -51,8 +58,22 @@ const AddJob = () => {
           autoComplete='organization'
         />
         <div className='flex flex-col gap-1'>
-          <label className='text-xs font-medium text-navy-muted'>Job Description</label>
+          <div className='flex items-center justify-between'>
+            <label htmlFor='job-description' className='text-xs font-medium text-navy-muted'>Job Description</label>
+            {isSignedIn && (
+              <button
+                type='button'
+                onClick={extractFromDescription}
+                disabled={!description.trim() || isExtracting}
+                className='flex items-center gap-1 text-xs text-accent-text hover:opacity-75 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed'
+              >
+                <Sparkles size={11} />
+                {isExtracting ? 'Extracting...' : 'Extract with AI'}
+              </button>
+            )}
+          </div>
           <textarea
+            id='job-description'
             value={description}
             onChange={(e) => updateDescription(e.target.value)}
             placeholder='Paste the job description here...'

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuthContext } from '@features/auth/context/AuthContext'
+import { useMigrateGuest } from '@features/auth/hooks/useMigrateGuest'
 import Button from '@shared/components/Button'
 
 const API_URL = import.meta.env.VITE_API_URL as string
@@ -10,6 +11,7 @@ const VerifyCode = () => {
   const { state } = useLocation()
   const navigate = useNavigate()
   const { login, pendingVerification, clearPendingVerification } = useAuthContext()
+  const migrateGuest = useMigrateGuest()
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -52,6 +54,7 @@ const VerifyCode = () => {
       }
       await clearPendingVerification()
       await login(data.token, data.user.email)
+      await migrateGuest()
       navigate('/', { replace: true })
     } catch {
       toast.error('Could not reach server. Please try again.')

@@ -18,7 +18,7 @@ const useAddJob = (onSave: (job: Job) => void) => {
   const [isExtracting, setIsExtracting] = useState(false)
 
   const createJob = useCreateJob()
-  const { getToken } = useAuthContext()
+  const { getToken, isSignedIn } = useAuthContext()
 
   useEffect(() => {
     const api = createApiClient(getToken)
@@ -33,7 +33,8 @@ const useAddJob = (onSave: (job: Job) => void) => {
         if (pendingTitle) setTitle(pendingTitle)
         if (pendingCompany) setCompany(pendingCompany)
 
-        if (desc && (!pendingTitle || !pendingCompany)) {
+        // Skip LLM extraction for guests — they fill in manually
+        if (isSignedIn && desc && (!pendingTitle || !pendingCompany)) {
           setIsExtracting(true)
           try {
             const extracted = await api.post<{ title: string; company: string }>('/jobs/extract', { description: desc })
@@ -68,13 +69,28 @@ const useAddJob = (onSave: (job: Job) => void) => {
     persistField(STORAGE_KEYS.PENDING_DESCRIPTION, value)
   }, [persistField])
 
+  const extractFromDescription = useCallback(async () => {
+    if (!description.trim() || isExtracting) return
+    setIsExtracting(true)
+    try {
+      const api = createApiClient(getToken)
+      const extracted = await api.post<{ title: string; company: string }>('/jobs/extract', { description: description.trim() })
+      if (extracted.title) { setTitle(extracted.title); persistField(STORAGE_KEYS.PENDING_TITLE, extracted.title) }
+      if (extracted.company) { setCompany(extracted.company); persistField(STORAGE_KEYS.PENDING_COMPANY, extracted.company) }
+    } catch {
+      // extraction failure is non-fatal
+    } finally {
+      setIsExtracting(false)
+    }
+  }, [description, isExtracting, getToken, persistField])
+
   const saveJob = useCallback(() => {
     createJob.mutate(
       { title: title.trim(), company: company.trim(), description: description.trim() },
       {
         onSuccess: (job) => {
           chrome.storage.local.remove([STORAGE_KEYS.PENDING_DESCRIPTION, STORAGE_KEYS.PENDING_TITLE, STORAGE_KEYS.PENDING_COMPANY])
-          onSave(job)
+          onSave(job as Job)
         },
       },
     )
@@ -83,7 +99,7 @@ const useAddJob = (onSave: (job: Job) => void) => {
   const isValid = title.trim().length > 0 && company.trim().length > 0 && description.trim().length > 0
   const isPending = createJob.isPending
 
-  return { title, company, description, updateTitle, updateCompany, updateDescription, saveJob, isValid, isPending, isExtracting }
+  return { title, company, description, updateTitle, updateCompany, updateDescription, saveJob, extractFromDescription, isValid, isPending, isExtracting }
 }
 
 export default useAddJob

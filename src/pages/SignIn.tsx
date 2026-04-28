@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuthContext } from '@features/auth/context/AuthContext'
+import { useMigrateGuest } from '@features/auth/hooks/useMigrateGuest'
 import Button from '@shared/components/Button'
 import Input from '@shared/components/Input'
 
@@ -12,6 +13,7 @@ const SignIn = () => {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const { login } = useAuthContext()
+  const migrateGuest = useMigrateGuest()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.SubmitEvent) => {
@@ -29,6 +31,7 @@ const SignIn = () => {
         return
       }
       await login(data.token, data.user.email)
+      await migrateGuest()
       navigate('/', { replace: true })
     } catch {
       toast.error('Could not reach server. Please try again.')

@@ -1,6 +1,18 @@
 export type JobStatus = 'saved' | 'applied' | 'interview' | 'rejected' | 'offer'
 export type ProcessingStatus = 'idle' | 'queued' | 'processing' | 'done' | 'failed'
 
+export interface GuestJob {
+  id: string
+  title: string
+  company: string
+  description: string
+  status: JobStatus
+  createdAt: string
+  cvGenerationStatus: ProcessingStatus
+  cvR2Key: string | null
+  downloadUrl?: string
+}
+
 export interface Job {
   id: string
   userId: string
