@@ -4,11 +4,9 @@ import { QUERY_KEYS, FREE_TIER_LIMIT } from '@shared/constants'
 import { useAuthContext } from '@features/auth/context/AuthContext'
 import { useGuestContext } from '@features/auth/context/GuestContext'
 import toast from 'react-hot-toast'
-import { createApiClient } from '@lib/api'
+import { createApiClient, BASE_URL } from '@lib/api'
 import { CACHE_KEYS } from '@lib/cache'
 import type { UserProfile } from '@shared/types'
-
-const BASE_URL = import.meta.env.VITE_API_URL as string
 
 function readUserCache(): UserProfile | undefined {
   try {

@@ -2,11 +2,9 @@ import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthContext } from '@features/auth/context/AuthContext'
 import { useGuestContext } from '@features/auth/context/GuestContext'
-import { createApiClient } from '@lib/api'
+import { createApiClient, BASE_URL } from '@lib/api'
 import { POLLING_INTERVAL_MS, QUERY_KEYS, FREE_TIER_LIMIT } from '@shared/constants'
 import toast from 'react-hot-toast'
-
-const BASE_URL = import.meta.env.VITE_API_URL as string
 
 interface GenerationStatus {
   status: 'idle' | 'queued' | 'processing' | 'done' | 'failed'

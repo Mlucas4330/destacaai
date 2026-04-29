@@ -39,7 +39,7 @@ export function createApiClient(getToken: GetToken) {
       const token = await getToken()
       const res = await fetch(`${BASE_URL}${path}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token ?? ''}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       })
       if (!res.ok) {

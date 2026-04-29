@@ -2,8 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuthContext } from '@features/auth/context/AuthContext'
 import { useGuestContext } from '@features/auth/context/GuestContext'
 import { QUERY_KEYS } from '@shared/constants'
-
-const BASE_URL = import.meta.env.VITE_API_URL as string
+import { BASE_URL } from '@lib/api'
 
 export function useMigrateGuest() {
   const { getToken } = useAuthContext()
