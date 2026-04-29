@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAuthContext } from '@features/auth/context/AuthContext'
 import { useGuestContext } from '@features/auth/context/GuestContext'
-import { createApiClient, BASE_URL } from '@lib/api'
+import * as atsApi from '@features/jobs/api/ats'
 import type { ProcessingStatus } from '@shared/types'
-import { POLLING_INTERVAL_MS, QUERY_KEYS } from '@shared/constants'
+import { POLLING_INTERVAL_MS, QUERY_KEYS } from '@features/jobs/constants'
 
 export interface AtsSideResult {
   status: ProcessingStatus

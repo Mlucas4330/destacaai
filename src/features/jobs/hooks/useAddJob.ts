@@ -40,7 +40,7 @@ const useAddJob = (onSave: (job: Job) => void) => {
             if (!pendingTitle && extracted.title) setTitle(extracted.title)
             if (!pendingCompany && extracted.company) setCompany(extracted.company)
           } catch {
-            // extraction failure is non-fatal — user can fill in manually
+            // extraction failure is non-fatal, user can fill in manually
           } finally {
             setIsExtracting(false)
           }

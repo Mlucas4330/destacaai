@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthContext } from '@features/auth/context/AuthContext'
 import { useGuestContext } from '@features/auth/context/GuestContext'
 import toast from 'react-hot-toast'
-import { createApiClient } from '@lib/api'
-import { CACHE_KEYS } from '@lib/cache'
+import * as jobsApi from '@features/jobs/api/jobs'
+import { guestJobToJob } from '@features/jobs/services/jobConverters'
+import { CACHE_KEYS, POLLING_INTERVAL_MS, QUERY_KEYS } from '@features/jobs/constants'
+import * as localStorageLib from '@lib/localStorage'
 import type { Job, JobStatus, GuestJob } from '@shared/types'
-import { POLLING_INTERVAL_MS, QUERY_KEYS } from '@shared/constants'
 
 function readJobsCache(): Job[] | undefined {
   try {
@@ -19,7 +20,7 @@ function readJobsCache(): Job[] | undefined {
 
 function useApi() {
   const { getToken } = useAuthContext()
-  return createApiClient(getToken)
+  return { getToken }
 }
 
 export function guestJobToJob(g: GuestJob): Job {
@@ -30,9 +31,9 @@ export function guestJobToJob(g: GuestJob): Job {
     company: g.company,
     description: g.description,
     status: g.status,
-    atsStatus: 'idle',
-    atsScore: null,
-    atsExplanation: null,
+    atsStatus: g.atsStatus ?? 'idle',
+    atsScore: g.atsScore ?? null,
+    atsExplanation: g.atsExplanation ?? null,
     cvGenerationStatus: g.cvGenerationStatus,
     cvGenerationError: null,
     cvR2Key: g.cvR2Key,
@@ -46,11 +47,11 @@ export function guestJobToJob(g: GuestJob): Job {
 export function useJobs() {
   const { isSignedIn } = useAuthContext()
   const { guestJobs } = useGuestContext()
-  const api = useApi()
+  const { getToken } = useApi()
 
   const result = useQuery({
     queryKey: [QUERY_KEYS.JOBS],
-    queryFn: () => api.get<{ jobs: Job[] }>('/jobs').then((r) => r.jobs),
+    queryFn: () => jobsApi.getJobs(getToken),
     enabled: isSignedIn,
     staleTime: 60_000,
     initialData: readJobsCache,
@@ -92,11 +93,11 @@ export function useJobs() {
 export function useCreateJob() {
   const { isSignedIn } = useAuthContext()
   const { addGuestJob } = useGuestContext()
-  const api = useApi()
+  const { getToken } = useApi()
   const qc = useQueryClient()
 
   const apiMutation = useMutation({
-    mutationFn: (data: { title: string; company: string; description: string }) => api.post<Job>('/jobs', data),
+    mutationFn: (data: { title: string; company: string; description: string }) => jobsApi.createJob(getToken, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEYS.JOBS] }),
     onError: (err) => toast.error(err.message ?? 'Failed to save job. Please try again.'),
   })
@@ -116,6 +117,9 @@ export function useCreateJob() {
           createdAt: new Date().toISOString(),
           cvGenerationStatus: 'idle',
           cvR2Key: null,
+          atsStatus: 'idle',
+          atsScore: null,
+          atsExplanation: null,
           generatedCvAtsStatus: 'idle',
           generatedCvAtsScore: null,
           generatedCvAtsExplanation: null,
@@ -132,11 +136,11 @@ export function useCreateJob() {
 export function useDeleteJob() {
   const { isSignedIn } = useAuthContext()
   const { deleteGuestJob } = useGuestContext()
-  const api = useApi()
+  const { getToken } = useApi()
   const qc = useQueryClient()
 
   const apiMutation = useMutation({
-    mutationFn: (jobId: string) => api.delete(`/jobs/${jobId}`),
+    mutationFn: (jobId: string) => jobsApi.deleteJob(getToken, jobId),
     onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEYS.JOBS] }),
     onError: (err) => toast.error(err.message ?? 'Failed to delete job. Please try again.'),
   })
@@ -154,11 +158,11 @@ export function useDeleteJob() {
 export function useClearJobs() {
   const { isSignedIn } = useAuthContext()
   const { clearGuestJobs } = useGuestContext()
-  const api = useApi()
+  const { getToken } = useApi()
   const qc = useQueryClient()
 
   const apiMutation = useMutation({
-    mutationFn: () => api.delete('/jobs'),
+    mutationFn: () => jobsApi.clearJobs(getToken),
     onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEYS.JOBS] }),
     onError: (err) => toast.error(err.message ?? 'Failed to clear jobs. Please try again.'),
   })
@@ -176,12 +180,12 @@ export function useClearJobs() {
 export function useUpdateJobStatus() {
   const { isSignedIn } = useAuthContext()
   const { updateGuestJob } = useGuestContext()
-  const api = useApi()
+  const { getToken } = useApi()
   const qc = useQueryClient()
 
   const apiMutation = useMutation({
     mutationFn: ({ jobId, status }: { jobId: string; status: JobStatus }) =>
-      api.patch<{ id: string; status: JobStatus }>(`/jobs/${jobId}/status`, { status }),
+      jobsApi.updateJobStatus(getToken, jobId, status),
     onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEYS.JOBS] }),
     onError: (err) => toast.error(err.message ?? 'Failed to update status. Please try again.'),
   })

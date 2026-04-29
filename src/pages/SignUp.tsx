@@ -9,14 +9,10 @@ import { STORAGE_KEYS } from '@shared/constants'
 const API_URL = import.meta.env.VITE_API_URL as string
 
 interface SignUpDraft {
-  firstName: string
-  lastName: string
   email: string
 }
 
 const SignUp = () => {
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,17 +22,13 @@ const SignUp = () => {
   useEffect(() => {
     chrome.storage.local.get(STORAGE_KEYS.PENDING_SIGNUP, (result) => {
       const draft = result[STORAGE_KEYS.PENDING_SIGNUP] as SignUpDraft | undefined
-      if (draft) {
-        if (draft.firstName) setFirstName(draft.firstName)
-        if (draft.lastName) setLastName(draft.lastName)
-        if (draft.email) setEmail(draft.email)
-      }
+      if (draft?.email) setEmail(draft.email)
     })
   }, [])
 
   const saveDraft = (patch: Partial<SignUpDraft>) => {
     chrome.storage.local.get(STORAGE_KEYS.PENDING_SIGNUP, (result) => {
-      const current = (result[STORAGE_KEYS.PENDING_SIGNUP] as SignUpDraft | undefined) ?? { firstName, lastName, email }
+      const current = (result[STORAGE_KEYS.PENDING_SIGNUP] as SignUpDraft | undefined) ?? { email }
       chrome.storage.local.set({ [STORAGE_KEYS.PENDING_SIGNUP]: { ...current, ...patch } })
     })
   }
@@ -52,7 +44,7 @@ const SignUp = () => {
       const res = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, firstName, lastName }),
+        body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -76,24 +68,6 @@ const SignUp = () => {
         <p className='text-xs text-navy-muted mt-0.5'>Start using DestacAI for free</p>
       </div>
       <form onSubmit={handleSubmit} className='flex flex-col gap-3'>
-        <Input
-          id='firstName'
-          label='First name'
-          type='text'
-          value={firstName}
-          onChange={(v) => { setFirstName(v); saveDraft({ firstName: v }) }}
-          autoComplete='given-name'
-          required
-        />
-        <Input
-          id='lastName'
-          label='Last name'
-          type='text'
-          value={lastName}
-          onChange={(v) => { setLastName(v); saveDraft({ lastName: v }) }}
-          autoComplete='family-name'
-          required
-        />
         <Input
           id='email'
           label='Email'

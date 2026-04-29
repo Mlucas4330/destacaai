@@ -2,8 +2,9 @@ import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthContext } from '@features/auth/context/AuthContext'
 import { useGuestContext } from '@features/auth/context/GuestContext'
-import { createApiClient, BASE_URL } from '@lib/api'
-import { POLLING_INTERVAL_MS, QUERY_KEYS, FREE_TIER_LIMIT } from '@shared/constants'
+import * as generationApi from '@features/jobs/api/generation'
+import { POLLING_INTERVAL_MS, QUERY_KEYS } from '@features/jobs/constants'
+import { FREE_TIER_LIMIT, ADMIN_BYPASS } from '@features/config/constants'
 import toast from 'react-hot-toast'
 
 interface GenerationStatus {
@@ -19,18 +20,18 @@ type MutateOptions = {
 
 function useApi() {
   const { getToken } = useAuthContext()
-  return createApiClient(getToken)
+  return { getToken }
 }
 
 export function useGenerateCV() {
   const { isSignedIn } = useAuthContext()
   const { guestId, guestJobs, guestGenerationsUsed, guestCvR2Key, incrementGuestGenerations, triggerLimitModal, updateGuestJob } =
     useGuestContext()
-  const api = useApi()
+  const { getToken } = useApi()
   const qc = useQueryClient()
 
   const apiMutation = useMutation({
-    mutationFn: (jobId: string) => api.post<{ status: string }>(`/generate/${jobId}`),
+    mutationFn: (jobId: string) => generationApi.generateCV(getToken, jobId),
     onSuccess: (_, jobId) => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.GENERATION_STATUS, jobId] })
     },
@@ -40,7 +41,7 @@ export function useGenerateCV() {
     return {
       ...apiMutation,
       mutate: (jobId: string, opts?: MutateOptions) => {
-        if (guestGenerationsUsed >= FREE_TIER_LIMIT) {
+        if (!ADMIN_BYPASS && guestGenerationsUsed >= FREE_TIER_LIMIT) {
           triggerLimitModal()
           opts?.onError?.(new Error('limit_reached'))
           return
@@ -59,31 +60,18 @@ export function useGenerateCV() {
 
         updateGuestJob(jobId, { cvGenerationStatus: 'queued' })
 
-        fetch(`${BASE_URL}/guest/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ guestId, jobId, cvR2Key: guestCvR2Key, jobDescription: guestJob.description }),
-        })
-          .then(async (res) => {
-            if (res.status === 429) {
-              triggerLimitModal()
-              updateGuestJob(jobId, { cvGenerationStatus: 'idle' })
-              opts?.onError?.(new Error('limit_reached'))
-              return
-            }
-            if (!res.ok) {
-              const body = await res.json().catch(() => null)
-              updateGuestJob(jobId, { cvGenerationStatus: 'idle' })
-              opts?.onError?.(new Error(body?.error ?? 'Failed to start generation.'))
-              return
-            }
+        generationApi.generateCVGuest(guestId, jobId, guestCvR2Key, guestJob.description)
+          .then(async () => {
             await incrementGuestGenerations()
             qc.invalidateQueries({ queryKey: [QUERY_KEYS.GENERATION_STATUS, jobId] })
             opts?.onSuccess?.({ status: 'queued' })
           })
-          .catch(() => {
+          .catch((err) => {
+            if (err.message === 'rate_limited') {
+              triggerLimitModal()
+            }
             updateGuestJob(jobId, { cvGenerationStatus: 'idle' })
-            opts?.onError?.(new Error('Could not reach server.'))
+            opts?.onError?.(err as Error)
           })
       },
     }
@@ -95,14 +83,12 @@ export function useGenerateCV() {
 export function useGenerationStatus(jobId: string, enabled: boolean) {
   const { isSignedIn } = useAuthContext()
   const { guestId, updateGuestJob } = useGuestContext()
-  const api = useApi()
+  const { getToken } = useApi()
 
   const guestQuery = useQuery({
     queryKey: [QUERY_KEYS.GENERATION_STATUS, jobId],
     queryFn: async (): Promise<GenerationStatus> => {
-      const res = await fetch(`${BASE_URL}/guest/generate/${jobId}/status?guestId=${encodeURIComponent(guestId)}`)
-      if (!res.ok) throw new Error('Failed to fetch status')
-      return res.json() as Promise<GenerationStatus>
+      return generationApi.getGuestGenerationStatus(jobId, guestId)
     },
     enabled: !isSignedIn && enabled && !!guestId,
     refetchInterval: (query) => {
@@ -114,7 +100,7 @@ export function useGenerationStatus(jobId: string, enabled: boolean) {
 
   const authQuery = useQuery({
     queryKey: [QUERY_KEYS.GENERATION_STATUS, jobId],
-    queryFn: () => api.get<GenerationStatus>(`/generate/${jobId}/status`),
+    queryFn: () => generationApi.getGenerationStatus(getToken, jobId),
     enabled: isSignedIn && enabled,
     refetchInterval: (query) => {
       const status = query.state.data?.status

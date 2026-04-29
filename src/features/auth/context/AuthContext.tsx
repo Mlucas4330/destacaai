@@ -1,26 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { STORAGE_KEYS } from '@shared/constants'
-import { clearAppCache } from '@lib/cache'
-
-interface AuthState {
-  token: string | null
-  email: string | null
-}
-
-export interface PendingVerification {
-  email: string
-  purpose: 'email-verification' | 'password-reset'
-}
-
-interface AuthContextValue {
-  isLoaded: boolean
-  isSignedIn: boolean
-  pendingVerification: PendingVerification | null
-  getToken: () => Promise<string | null>
-  signOut: () => Promise<void>
-  login: (token: string, email: string) => Promise<void>
-  clearPendingVerification: () => Promise<void>
-}
+import * as chromeStorage from '@/lib/chromeStorage'
+import { STORAGE_KEYS } from '@/features/auth/constants'
+import type { AuthContextValue, AuthState, PendingVerification } from '../types'
+import { clear } from '@/lib/localStorage'
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
@@ -30,30 +12,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [pendingVerification, setPendingVerification] = useState<PendingVerification | null>(null)
 
   useEffect(() => {
-    chrome.storage.local.get([STORAGE_KEYS.AUTH, STORAGE_KEYS.PENDING_VERIFICATION], (result) => {
+    (async () => {
+      const result = await chromeStorage.get([STORAGE_KEYS.AUTH, STORAGE_KEYS.PENDING_VERIFICATION])
       const stored = result[STORAGE_KEYS.AUTH] as AuthState | undefined
       if (stored?.token) setAuth(stored)
       const pending = result[STORAGE_KEYS.PENDING_VERIFICATION] as PendingVerification | undefined
       if (pending?.email) setPendingVerification(pending)
       setIsLoaded(true)
-    })
+    })()
   }, [])
 
   const login = async (token: string, email: string) => {
     const next = { token, email }
-    await chrome.storage.local.set({ [STORAGE_KEYS.AUTH]: next })
+    await chromeStorage.set({ [STORAGE_KEYS.AUTH]: next })
     setAuth(next)
   }
 
   const signOut = async () => {
-    await chrome.storage.local.remove([STORAGE_KEYS.AUTH, STORAGE_KEYS.PENDING_VERIFICATION])
-    clearAppCache()
+    await chromeStorage.remove([STORAGE_KEYS.AUTH, STORAGE_KEYS.PENDING_VERIFICATION])
+    clear()
     setAuth({ token: null, email: null })
     setPendingVerification(null)
   }
 
   const clearPendingVerification = async () => {
-    await chrome.storage.local.remove(STORAGE_KEYS.PENDING_VERIFICATION)
+    await chromeStorage.remove(STORAGE_KEYS.PENDING_VERIFICATION)
     setPendingVerification(null)
   }
 
@@ -66,7 +49,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useAuthContext() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuthContext must be used inside AuthProvider')

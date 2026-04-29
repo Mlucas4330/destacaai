@@ -127,7 +127,7 @@ const ConfigForm = () => {
         <div className='flex items-center justify-between'>
           <div>
             <p className='text-xs font-medium text-navy-muted'>Plan</p>
-            <p className='text-sm font-semibold text-navy capitalize'>{user?.tier ?? '—'}</p>
+            <p className='text-sm font-semibold text-navy capitalize'>{user?.tier ?? '-'}</p>
           </div>
           {user?.tier === 'free' && (
             <Button

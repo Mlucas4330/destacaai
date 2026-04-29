@@ -1,55 +1,60 @@
-export const BASE_URL = import.meta.env.VITE_API_URL as string
+import { get } from "./localStorage";
 
-type GetToken = () => Promise<string | null>
+export const BASE_URL = import.meta.env.VITE_API_URL as string;
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(public status: number, message: string) {
-    super(message)
-    this.name = 'ApiError'
+    super(message);
+    this.name = 'ApiError';
   }
 }
 
-export function createApiClient(getToken: GetToken) {
-  async function headers(extra?: HeadersInit): Promise<HeadersInit> {
-    const token = await getToken()
-    return token ? { Authorization: `Bearer ${token}`, ...extra } : { ...extra }
-  }
+interface RequestOptions {
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  path: string;
+  body?: unknown
+  requiresAuth?: boolean
+}
 
-  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      method,
-      headers: await headers(body ? { 'Content-Type': 'application/json' } : {}),
-      body: body ? JSON.stringify(body) : undefined,
-    })
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      const message = body?.message ?? body?.error ?? res.statusText
-      throw new ApiError(res.status, message)
+export const fetchApi = async <T>({
+  method,
+  path,
+  body,
+  requiresAuth = true,
+}: RequestOptions): Promise<T> => {
+  const headers: Record<string, string> = {};
+
+  if (requiresAuth) {
+    const token = await get('token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
-    if (res.status === 204) return undefined as T
-    return res.json() as Promise<T>
   }
 
-  return {
-    get: <T>(path: string) => request<T>('GET', path),
-    post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
-    patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
-    delete: (path: string) => request<void>('DELETE', path),
-    uploadFile: async <T>(path: string, formData: FormData): Promise<T> => {
-      const token = await getToken()
-      const res = await fetch(`${BASE_URL}${path}`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        const message = body?.message ?? body?.error ?? res.statusText
-        throw new ApiError(res.status, message)
-      }
-      return res.json() as Promise<T>
-    },
-  }
-}
+  let requestBody: BodyInit | undefined;
 
-export { ApiError }
+  if (body instanceof FormData) {
+    requestBody = body;
+  } else if (body) {
+    headers['Content-Type'] = 'application/json';
+    requestBody = JSON.stringify(body);
+  }
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method,
+    headers,
+    body: requestBody,
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    const message = errorBody?.message ?? errorBody?.error ?? res.statusText;
+    throw new ApiError(res.status, message);
+  }
+
+  if (res.status === 204) {
+    return {} as T;
+  }
+
+  return res.json() as Promise<T>;
+};

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, X } from 'lucide-react'
 import { useAuthContext } from '@features/auth/context/AuthContext'
 import { useGuestContext } from '@features/auth/context/GuestContext'
+import { BASE_URL } from '@lib/api'
 import type { Job, JobStatus } from '@shared/types'
 import Button from '@shared/components/Button'
 import IconButton from '@shared/components/IconButton'
@@ -10,7 +11,6 @@ import toast from 'react-hot-toast'
 import { useUpdateJobStatus } from '../hooks/useJobs'
 import { useGenerationStatus } from '../hooks/useGenerateCV'
 import { useAtsScore } from '../hooks/useAtsScore'
-import { useUser } from '@features/config/hooks/useUser'
 
 const STATUS_LABELS: Record<JobStatus, string> = {
   saved: 'Saved',
@@ -59,20 +59,20 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
   const [expandedGenerated, setExpandedGenerated] = useState(false)
   const updateStatus = useUpdateJobStatus()
   const { getToken, isSignedIn } = useAuthContext()
-  const { updateGuestJob } = useGuestContext()
+  const { updateGuestJob, guestId } = useGuestContext()
 
   const isGenerating = job.cvGenerationStatus === 'queued' || job.cvGenerationStatus === 'processing'
   const { data: genStatus } = useGenerationStatus(job.id, isGenerating)
-  const { data: user } = useUser()
+
 
   const isAtsPolling = job.generatedCvAtsStatus === 'queued' || job.generatedCvAtsStatus === 'processing'
   const { data: atsData } = useAtsScore(
     job.id,
-    isAtsPolling || (!isSignedIn && job.cvGenerationStatus === 'done' && job.generatedCvAtsStatus !== 'done'),
+    isAtsPolling || (!isSignedIn && job.cvGenerationStatus === 'done' && (job.generatedCvAtsStatus !== 'done' || job.atsStatus !== 'done')),
   )
 
   useEffect(() => {
-    if (isSignedIn || !atsData?.generated) return
+    if (isSignedIn || !atsData) return
     if (atsData.generated.status === 'done' || atsData.generated.status === 'failed') {
       updateGuestJob(job.id, {
         generatedCvAtsStatus: atsData.generated.status,
@@ -80,28 +80,43 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
         generatedCvAtsExplanation: atsData.generated.explanation,
       })
     }
+    if (atsData.uploaded.status === 'done' || atsData.uploaded.status === 'failed') {
+      updateGuestJob(job.id, {
+        atsStatus: atsData.uploaded.status,
+        atsScore: atsData.uploaded.score,
+        atsExplanation: atsData.uploaded.explanation,
+      })
+    }
   }, [atsData, isSignedIn, job.id, updateGuestJob])
 
+  const displayUploadedAtsStatus = atsData?.uploaded.status ?? job.atsStatus
+  const displayUploadedAtsScore = atsData?.uploaded.score ?? job.atsScore
+  const displayUploadedAtsExplanation = atsData?.uploaded.explanation ?? job.atsExplanation
   const displayGeneratedAtsStatus = atsData?.generated.status ?? job.generatedCvAtsStatus
   const displayGeneratedAtsScore = atsData?.generated.score ?? job.generatedCvAtsScore
   const displayGeneratedAtsExplanation = atsData?.generated.explanation ?? job.generatedCvAtsExplanation
 
   const handleDownload = async () => {
     try {
-      const token = await getToken()
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/generate/${job.id}/download`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
-      if (!response.ok) throw new Error('Download failed')
-      const blob = await response.blob()
+      let res: Response
+      if (!isSignedIn) {
+        res = await fetch(`${BASE_URL}/guest/generate/${job.id}/download?guestId=${encodeURIComponent(guestId)}`)
+      } else {
+        const token = await getToken()
+        res = await fetch(
+          `${import.meta.env.VITE_API_URL}/generate/${job.id}/download`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+      }
+      if (!res.ok) throw new Error('Download failed')
+      const disposition = res.headers.get('Content-Disposition')
+      const match = disposition?.match(/filename="([^"]+)"/)
+      const fileName = match?.[1] ?? 'cv.pdf'
+      const blob = await res.blob()
       const blobUrl = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      const firstName = user?.firstName?.toLocaleLowerCase()
-      const lastName = user?.lastName?.toLocaleLowerCase()
-      const userName = firstName && lastName ? `${firstName}_${lastName}` : (user?.email.split('@')[0] ?? 'cv')
       a.href = blobUrl
-      a.download = `${userName}_cv.pdf`
+      a.download = fileName
       a.click()
       URL.revokeObjectURL(blobUrl)
     } catch {
@@ -131,16 +146,16 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
           </p>
 
           <div className='flex items-center gap-3 mt-1.5'>
-            {job.atsStatus === 'queued' || job.atsStatus === 'processing' ? (
+            {displayUploadedAtsStatus === 'queued' || displayUploadedAtsStatus === 'processing' ? (
               <p className='text-xs text-navy-muted opacity-60'>Base scoring...</p>
-            ) : job.atsStatus === 'done' && job.atsScore !== null ? (
+            ) : displayUploadedAtsStatus === 'done' && displayUploadedAtsScore !== null ? (
               <button
                 onClick={(e) => { e.stopPropagation(); setExpandedUploaded((v) => !v) }}
                 className='text-xs font-medium text-navy-muted hover:opacity-80 transition-opacity'
               >
-                Base: <span className={scoreColor(job.atsScore)}>{job.atsScore}/100</span>
+                Base: <span className={scoreColor(displayUploadedAtsScore)}>{displayUploadedAtsScore}/100</span>
               </button>
-            ) : job.atsStatus === 'failed' ? (
+            ) : displayUploadedAtsStatus === 'failed' ? (
               <p className='text-xs text-red-400 opacity-80'>Base score failed</p>
             ) : null}
 
@@ -187,7 +202,7 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
       </div>
 
       <AnimatePresence>
-        {expandedUploaded && job.atsExplanation && (
+        {expandedUploaded && displayUploadedAtsExplanation && (
           <motion.div
             key='uploaded'
             initial={{ opacity: 0, height: 0 }}
@@ -197,7 +212,7 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
             className='overflow-hidden'
           >
             <div className='relative text-xs text-navy-muted bg-surface border border-border rounded-lg p-2 pr-6 leading-relaxed'>
-              <span className='font-medium text-navy'>Base: </span>{job.atsExplanation}
+              <span className='font-medium text-navy'>Base: </span>{displayUploadedAtsExplanation}
               <button
                 onClick={(e) => { e.stopPropagation(); setExpandedUploaded(false) }}
                 className='absolute top-1.5 right-1.5 text-navy-muted hover:text-navy transition-colors'

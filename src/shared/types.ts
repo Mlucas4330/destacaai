@@ -11,6 +11,9 @@ export interface GuestJob {
   cvGenerationStatus: ProcessingStatus
   cvR2Key: string | null
   downloadUrl?: string
+  atsStatus: ProcessingStatus
+  atsScore: number | null
+  atsExplanation: string | null
   generatedCvAtsStatus: ProcessingStatus
   generatedCvAtsScore: number | null
   generatedCvAtsExplanation: string | null

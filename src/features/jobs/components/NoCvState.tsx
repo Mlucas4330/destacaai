@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { Upload } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import Button from '@shared/components/Button'
+import Button from '@/shared/components/Button'
 
 const NoCvState = () => {
   const navigate = useNavigate()

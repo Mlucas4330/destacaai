@@ -4,30 +4,23 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { MemoryRouter, Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { Briefcase, Settings } from 'lucide-react'
-import Jobs from '@pages/Jobs'
-import Config from '@pages/Config'
-import SignIn from '@pages/SignIn'
-import SignUp from '@pages/SignUp'
-import VerifyCode from '@pages/VerifyCode'
-import ForgotPassword from '@pages/ForgotPassword'
-import ResetPassword from '@pages/ResetPassword'
-import AddJob from '@features/jobs/components/AddJob'
-import GenerateCV from '@features/jobs/components/GenerateCV'
-import AuthGate from '@features/auth/components/AuthGate'
-import GuestLimitModal from '@features/auth/components/GuestLimitModal'
-import { AuthProvider } from '@features/auth/context/AuthContext'
-import { GuestProvider } from '@features/auth/context/GuestContext'
-import { useAuthContext } from '@features/auth/context/AuthContext'
-import { useGuestContext } from '@features/auth/context/GuestContext'
-import { queryClient } from '@lib/queryClient'
+import Jobs from '@/pages/Jobs'
+import Config from '@/pages/Config'
+import SignIn from '@/pages/SignIn'
+import SignUp from '@/pages/SignUp'
+import VerifyCode from '@/pages/VerifyCode'
+import ForgotPassword from '@/pages/ForgotPassword'
+import ResetPassword from '@/pages/ResetPassword'
+import AddJob from '@/features/jobs/components/AddJob'
+import GenerateCV from '@/features/jobs/components/GenerateCV'
+import GuestLimitModal from '@/features/auth/components/GuestLimitModal'
+import { AuthProvider } from '@/features/auth/context/AuthContext'
+import { GuestProvider } from '@/features/auth/context/GuestContext'
+import { useAuthContext } from '@/features/auth/context/AuthContext'
+import { useGuestContext } from '@/features/auth/context/GuestContext'
+import { queryClient } from '@/lib/queryClient'
 
-const NAV_LINK_CLASS = ({ isActive }: { isActive: boolean }) =>
-  `flex flex-col items-center gap-0.5 py-2 px-6 text-xs transition-colors ${
-    isActive ? 'text-accent-text font-semibold' : 'text-navy-muted hover:text-navy'
-  }`
-
-const Layout = (): React.ReactNode => {
-  const location = useLocation()
+const App = (): React.ReactNode => {
   const navigate = useNavigate()
   const { isSignedIn, pendingVerification } = useAuthContext()
   const { showLimitModal } = useGuestContext()
@@ -39,64 +32,35 @@ const Layout = (): React.ReactNode => {
   }, [pendingVerification, isSignedIn, navigate])
 
   return (
-    <div className='flex flex-col h-full'>
-      <div className='flex-1 overflow-auto'>
-        <AnimatePresence mode='wait'>
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15 }}
-            className='h-full'
-          >
-            <Routes location={location}>
-              <Route path='/' element={<Jobs />} />
-              <Route path='/add-job' element={<AddJob />} />
-              <Route path='/generate/:jobId' element={<GenerateCV />} />
-              <Route path='/config' element={<Config />} />
-            </Routes>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {showLimitModal && <GuestLimitModal />}
-
-      <nav className='flex border-t border-border bg-bg'>
-        <NavLink to='/' end className={NAV_LINK_CLASS}>
-          <Briefcase size={18} />
-          Jobs
-        </NavLink>
-        <NavLink to='/config' className={NAV_LINK_CLASS}>
-          <Settings size={18} />
-          Settings
-        </NavLink>
-      </nav>
-    </div>
-  )
-}
-
-const App = (): React.ReactNode => {
-  return (
     <MemoryRouter>
       <AuthProvider>
         <GuestProvider>
           <QueryClientProvider client={queryClient}>
             <Routes>
+              <Route path='/' element={<Jobs />} />
               <Route path='/sign-in' element={<SignIn />} />
               <Route path='/sign-up' element={<SignUp />} />
               <Route path='/verify-code' element={<VerifyCode />} />
               <Route path='/forgot-password' element={<ForgotPassword />} />
               <Route path='/reset-password' element={<ResetPassword />} />
-              <Route
-                path='/*'
-                element={
-                  <AuthGate>
-                    <Layout />
-                  </AuthGate>
-                }
-              />
+              <Route path='/add-job' element={<AddJob />} />
+              <Route path='/generate/:jobId' element={<GenerateCV />} />
+              <Route path='/config' element={<Config />} />
             </Routes>
+
+            {showLimitModal && <GuestLimitModal />}
+
+            <nav className='flex border-t border-border bg-bg'>
+              <NavLink to='/' className='flex flex-col items-center gap-0.5 py-2 px-6 text-xs transition-colors text-accent-text font-semibold'>
+                <Briefcase size={18} />
+                Jobs
+              </NavLink>
+              <NavLink to='/config' className='flex flex-col items-center gap-0.5 py-2 px-6 text-xs transition-colors text-accent-text font-semibold'>
+                <Settings size={18} />
+                Settings
+              </NavLink>
+            </nav>
+
             <Toaster
               position='bottom-center'
               toastOptions={{

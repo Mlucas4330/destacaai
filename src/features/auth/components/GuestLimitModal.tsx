@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useGuestContext } from '@features/auth/context/GuestContext'
-import Button from '@shared/components/Button'
+import { useGuestContext } from '@/features/auth/context/GuestContext'
+import Button from '@/shared/components/Button'
 
 export default function GuestLimitModal() {
   const { dismissLimitModal } = useGuestContext()

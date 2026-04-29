@@ -1,14 +1,15 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
-import EmptyState from '@features/jobs/components/EmptyState'
-import NoCvState from '@features/jobs/components/NoCvState'
-import JobList from '@features/jobs/components/JobList'
-import { useJobs, useDeleteJob, useClearJobs } from '@features/jobs/hooks/useJobs'
-import { useUser } from '@features/config/hooks/useUser'
-import { useAuthContext } from '@features/auth/context/AuthContext'
-import { useGuestContext } from '@features/auth/context/GuestContext'
-import { STORAGE_KEYS } from '@shared/constants'
+import EmptyState from '@/features/jobs/components/EmptyState'
+import NoCvState from '@/features/jobs/components/NoCvState'
+import JobList from '@/features/jobs/components/JobList'
+import { useJobs, useDeleteJob, useClearJobs } from '@/features/jobs/hooks/useJobs'
+import { useUser } from '@/features/config/hooks/useUser'
+import { useAuthContext } from '@/features/auth/context/AuthContext'
+import { useGuestContext } from '@/features/auth/context/GuestContext'
+import { STORAGE_KEYS } from '@/shared/constants'
+import Loading from '@/shared/components/Loading'
 
 const Jobs = () => {
   const navigate = useNavigate()
@@ -36,7 +37,6 @@ const Jobs = () => {
     return () => chrome.storage.onChanged.removeListener(listener)
   }, [navigate, hasCv, isLoading])
 
-  // For guests: listen for pending description even without a CV (NoCvState handles the gate)
   useEffect(() => {
     if (isSignedIn || isLoading) return
 
@@ -52,30 +52,26 @@ const Jobs = () => {
   }, [isSignedIn, isLoading, navigate])
 
   if (isLoading) {
-    return (
-      <div className='flex items-center justify-center h-full p-3'>
-        <div className='w-5 h-5 border-2 border-accent rounded-full border-t-transparent animate-spin' />
-      </div>
-    )
+    return <Loading />
   }
 
   if (!hasCv) {
     return <NoCvState />
   }
 
+  if (jobs.length === 0) {
+    return <EmptyState />
+  }
+
   return (
     <AnimatePresence mode='wait'>
-      {jobs.length > 0 ? (
-        <JobList
-          key='list'
-          jobs={jobs}
-          onDelete={(id) => deleteJob.mutate(id)}
-          onGenerate={(id) => navigate(`/generate/${id}`)}
-          onClearAll={() => clearJobs.mutate()}
-        />
-      ) : (
-        <EmptyState key='empty' />
-      )}
+      <JobList
+        key='list'
+        jobs={jobs}
+        onDelete={(id) => deleteJob.mutate(id)}
+        onGenerate={(id) => navigate(`/generate/${id}`)}
+        onClearAll={() => clearJobs.mutate()}
+      />
     </AnimatePresence>
   )
 }
