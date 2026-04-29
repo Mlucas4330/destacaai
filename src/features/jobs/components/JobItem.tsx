@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, X } from 'lucide-react'
 import { useAuthContext } from '@features/auth/context/AuthContext'
+import { useGuestContext } from '@features/auth/context/GuestContext'
 import type { Job, JobStatus } from '@shared/types'
 import Button from '@shared/components/Button'
 import IconButton from '@shared/components/IconButton'
 import toast from 'react-hot-toast'
 import { useUpdateJobStatus } from '../hooks/useJobs'
 import { useGenerationStatus } from '../hooks/useGenerateCV'
+import { useAtsScore } from '../hooks/useAtsScore'
 import { useUser } from '@features/config/hooks/useUser'
 
 const STATUS_LABELS: Record<JobStatus, string> = {
@@ -56,11 +58,33 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
   const [expandedUploaded, setExpandedUploaded] = useState(false)
   const [expandedGenerated, setExpandedGenerated] = useState(false)
   const updateStatus = useUpdateJobStatus()
-  const { getToken } = useAuthContext()
+  const { getToken, isSignedIn } = useAuthContext()
+  const { updateGuestJob } = useGuestContext()
 
   const isGenerating = job.cvGenerationStatus === 'queued' || job.cvGenerationStatus === 'processing'
   const { data: genStatus } = useGenerationStatus(job.id, isGenerating)
   const { data: user } = useUser()
+
+  const isAtsPolling = job.generatedCvAtsStatus === 'queued' || job.generatedCvAtsStatus === 'processing'
+  const { data: atsData } = useAtsScore(
+    job.id,
+    isAtsPolling || (!isSignedIn && job.cvGenerationStatus === 'done' && job.generatedCvAtsStatus !== 'done'),
+  )
+
+  useEffect(() => {
+    if (isSignedIn || !atsData?.generated) return
+    if (atsData.generated.status === 'done' || atsData.generated.status === 'failed') {
+      updateGuestJob(job.id, {
+        generatedCvAtsStatus: atsData.generated.status,
+        generatedCvAtsScore: atsData.generated.score,
+        generatedCvAtsExplanation: atsData.generated.explanation,
+      })
+    }
+  }, [atsData, isSignedIn, job.id, updateGuestJob])
+
+  const displayGeneratedAtsStatus = atsData?.generated.status ?? job.generatedCvAtsStatus
+  const displayGeneratedAtsScore = atsData?.generated.score ?? job.generatedCvAtsScore
+  const displayGeneratedAtsExplanation = atsData?.generated.explanation ?? job.generatedCvAtsExplanation
 
   const handleDownload = async () => {
     try {
@@ -120,16 +144,16 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
               <p className='text-xs text-red-400 opacity-80'>Base score failed</p>
             ) : null}
 
-            {job.generatedCvAtsStatus === 'queued' || job.generatedCvAtsStatus === 'processing' ? (
+            {displayGeneratedAtsStatus === 'queued' || displayGeneratedAtsStatus === 'processing' ? (
               <p className='text-xs text-navy-muted opacity-60'>Tailored scoring...</p>
-            ) : job.generatedCvAtsStatus === 'done' && job.generatedCvAtsScore !== null ? (
+            ) : displayGeneratedAtsStatus === 'done' && displayGeneratedAtsScore !== null ? (
               <button
                 onClick={(e) => { e.stopPropagation(); setExpandedGenerated((v) => !v) }}
                 className='text-xs font-medium text-navy-muted hover:opacity-80 transition-opacity'
               >
-                Tailored: <span className={scoreColor(job.generatedCvAtsScore)}>{job.generatedCvAtsScore}/100</span>
+                Tailored: <span className={scoreColor(displayGeneratedAtsScore)}>{displayGeneratedAtsScore}/100</span>
               </button>
-            ) : job.generatedCvAtsStatus === 'failed' ? (
+            ) : displayGeneratedAtsStatus === 'failed' ? (
               <p className='text-xs text-red-400 opacity-80'>Tailored failed</p>
             ) : null}
           </div>
@@ -184,7 +208,7 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
             </div>
           </motion.div>
         )}
-        {expandedGenerated && job.generatedCvAtsExplanation && (
+        {expandedGenerated && displayGeneratedAtsExplanation && (
           <motion.div
             key='generated'
             initial={{ opacity: 0, height: 0 }}
@@ -194,7 +218,7 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
             className='overflow-hidden'
           >
             <div className='relative text-xs text-navy-muted bg-surface border border-border rounded-lg p-2 pr-6 leading-relaxed'>
-              <span className='font-medium text-navy'>Tailored: </span>{job.generatedCvAtsExplanation}
+              <span className='font-medium text-navy'>Tailored: </span>{displayGeneratedAtsExplanation}
               <button
                 onClick={(e) => { e.stopPropagation(); setExpandedGenerated(false) }}
                 className='absolute top-1.5 right-1.5 text-navy-muted hover:text-navy transition-colors'

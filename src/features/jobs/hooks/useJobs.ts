@@ -37,9 +37,9 @@ export function guestJobToJob(g: GuestJob): Job {
     cvGenerationError: null,
     cvR2Key: g.cvR2Key,
     createdAt: g.createdAt,
-    generatedCvAtsStatus: 'idle',
-    generatedCvAtsScore: null,
-    generatedCvAtsExplanation: null,
+    generatedCvAtsStatus: g.generatedCvAtsStatus ?? 'idle',
+    generatedCvAtsScore: g.generatedCvAtsScore ?? null,
+    generatedCvAtsExplanation: g.generatedCvAtsExplanation ?? null,
   }
 }
 
@@ -116,6 +116,9 @@ export function useCreateJob() {
           createdAt: new Date().toISOString(),
           cvGenerationStatus: 'idle',
           cvR2Key: null,
+          generatedCvAtsStatus: 'idle',
+          generatedCvAtsScore: null,
+          generatedCvAtsExplanation: null,
         }
         addGuestJob(guestJob).then(() => opts?.onSuccess?.(guestJobToJob(guestJob)))
       },
