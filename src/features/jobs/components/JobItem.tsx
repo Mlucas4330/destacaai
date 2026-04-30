@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, X } from 'lucide-react'
-import { useAuthContext } from '@/features/auth/stores/auth'
-import { useGuestContext } from '@/features/auth/stores/GuestContext'
-import { BASE_URL } from '@/lib/api.client'
+import { apiClient } from '@/lib/apiClient'
 import type { Job, JobStatus } from '@/shared/types'
 import Button from '@/shared/components/Button'
 import IconButton from '@/shared/components/IconButton'
@@ -58,36 +56,12 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
   const [expandedUploaded, setExpandedUploaded] = useState(false)
   const [expandedGenerated, setExpandedGenerated] = useState(false)
   const updateStatus = useUpdateJobStatus()
-  const { getToken, isSignedIn } = useAuthContext()
-  const { updateGuestJob, guestId } = useGuestContext()
 
   const isGenerating = job.cvGenerationStatus === 'queued' || job.cvGenerationStatus === 'processing'
   const { data: genStatus } = useGenerationStatus(job.id, isGenerating)
 
-
   const isAtsPolling = job.generatedCvAtsStatus === 'queued' || job.generatedCvAtsStatus === 'processing'
-  const { data: atsData } = useAtsScore(
-    job.id,
-    isAtsPolling || (!isSignedIn && job.cvGenerationStatus === 'done' && (job.generatedCvAtsStatus !== 'done' || job.atsStatus !== 'done')),
-  )
-
-  useEffect(() => {
-    if (isSignedIn || !atsData) return
-    if (atsData.generated.status === 'done' || atsData.generated.status === 'failed') {
-      updateGuestJob(job.id, {
-        generatedCvAtsStatus: atsData.generated.status,
-        generatedCvAtsScore: atsData.generated.score,
-        generatedCvAtsExplanation: atsData.generated.explanation,
-      })
-    }
-    if (atsData.uploaded.status === 'done' || atsData.uploaded.status === 'failed') {
-      updateGuestJob(job.id, {
-        atsStatus: atsData.uploaded.status,
-        atsScore: atsData.uploaded.score,
-        atsExplanation: atsData.uploaded.explanation,
-      })
-    }
-  }, [atsData, isSignedIn, job.id, updateGuestJob])
+  const { data: atsData } = useAtsScore(job.id, isAtsPolling)
 
   const displayUploadedAtsStatus = atsData?.uploaded.status ?? job.atsStatus
   const displayUploadedAtsScore = atsData?.uploaded.score ?? job.atsScore
@@ -98,22 +72,11 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
 
   const handleDownload = async () => {
     try {
-      let res: Response
-      if (!isSignedIn) {
-        res = await fetch(`${BASE_URL}/guest/generate/${job.id}/download?guestId=${encodeURIComponent(guestId)}`)
-      } else {
-        const token = await getToken()
-        res = await fetch(
-          `${import.meta.env.VITE_API_URL}/generate/${job.id}/download`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        )
-      }
-      if (!res.ok) throw new Error('Download failed')
-      const disposition = res.headers.get('Content-Disposition')
+      const res = await apiClient.get<Blob>(`/generate/${job.id}/download`, { responseType: 'blob' })
+      const disposition = res.headers['content-disposition'] as string | undefined
       const match = disposition?.match(/filename="([^"]+)"/)
       const fileName = match?.[1] ?? 'cv.pdf'
-      const blob = await res.blob()
-      const blobUrl = URL.createObjectURL(blob)
+      const blobUrl = URL.createObjectURL(res.data)
       const a = document.createElement('a')
       a.href = blobUrl
       a.download = fileName

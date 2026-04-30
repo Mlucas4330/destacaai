@@ -58,21 +58,3 @@ export interface ResetPasswordFormProps {
   code: string
 }
 
-export interface GuestContextValue {
-  guestId: string
-  guestJobs: GuestJob[]
-  guestGenerationsUsed: number
-  guestCvR2Key: string | null
-  showLimitModal: boolean
-  addGuestJob: (job: GuestJob) => Promise<void>
-  deleteGuestJob: (id: string) => Promise<void>
-  clearGuestJobs: () => Promise<void>
-  updateGuestJob: (id: string, patch: Partial<GuestJob>) => Promise<void>
-  incrementGuestGenerations: () => Promise<void>
-  setGuestCvR2Key: (key: string | null) => Promise<void>
-  triggerLimitModal: () => void
-  dismissLimitModal: () => void
-  clearGuestData: () => Promise<void>
-  handleSignIn: () => void
-  handleSignUp: () => void
-}

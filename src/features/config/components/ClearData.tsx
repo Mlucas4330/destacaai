@@ -1,8 +1,11 @@
 import { useClearJobs } from "@/features/jobs/hooks/useJobs"
 import Button from "@/shared/components/Button"
 import { useDeleteCV } from "../hooks/useUser"
-import * as localStorage from "@/lib/localStorage"
-import * as chromeStorage from "@/lib/chromeStorage"
+import { localStorageClient } from "@/lib/localStorageClient"
+import { chromeStorageClient } from "@/lib/chromeStorageClient"
+import { CACHE_KEYS as JOB_CACHE_KEYS } from "@/features/jobs/constants"
+import { CACHE_KEYS as USER_CACHE_KEYS } from "@/features/config/constants"
+import { STORAGE_KEYS } from "@/shared/constants"
 
 const ClearData = () => {
   const clearJobs = useClearJobs()
@@ -11,8 +14,17 @@ const ClearData = () => {
   const handleClearAll = () => {
     clearJobs.mutate()
     deleteCV.mutate()
-    localStorage.clear()
-    chromeStorage.clear()
+    localStorageClient.remove([
+      JOB_CACHE_KEYS.JOBS,
+      JOB_CACHE_KEYS.JOBS_TS,
+      USER_CACHE_KEYS.USER,
+      USER_CACHE_KEYS.USER_TS,
+    ])
+    chromeStorageClient.remove([
+      STORAGE_KEYS.PENDING_DESCRIPTION,
+      STORAGE_KEYS.PENDING_TITLE,
+      STORAGE_KEYS.PENDING_COMPANY,
+    ])
   }
 
   return (

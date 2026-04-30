@@ -1,14 +1,14 @@
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
-import JobList from './JobList'
-import EmptyState from './EmptyState'
-import { useGuestJobs, useGuestDeleteJob, useGuestClearJobs } from '../hooks/useJobs'
+import JobList from '../features/jobs/components/JobList'
+import EmptyState from '../features/jobs/components/EmptyState'
+import { useJobs, useDeleteJob, useClearJobs } from '../features/jobs/hooks/useJobs'
 
-const GuestJobsView = () => {
+const Jobs = () => {
   const navigate = useNavigate()
-  const { data: jobs = [] } = useGuestJobs()
-  const deleteJob = useGuestDeleteJob()
-  const clearJobs = useGuestClearJobs()
+  const { data: jobs = [] } = useJobs()
+  const deleteJob = useDeleteJob()
+  const clearJobs = useClearJobs()
 
   if (jobs.length === 0) return <EmptyState />
 
@@ -25,4 +25,4 @@ const GuestJobsView = () => {
   )
 }
 
-export default GuestJobsView
+export default Jobs

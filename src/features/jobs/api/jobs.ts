@@ -1,34 +1,20 @@
-import { fetchApi } from '@/lib/api.client'
+import { apiClient } from '@/lib/apiClient'
 import type { Job, JobStatus } from '@/shared/types'
 
-export function getJobs(token: string): Promise<Job[]> {
-  return fetchApi<{ jobs: Job[] }>({ method: 'GET', path: '/jobs', token }).then((r) => r.jobs)
-}
+export const getJobs = () =>
+  apiClient.get<{ jobs: Job[] }>('/jobs').then((r) => r.data.jobs)
 
-export function createJob(
-  token: string,
-  data: { title: string; company: string; description: string },
-): Promise<Job> {
-  return fetchApi<Job>({ method: 'POST', path: '/jobs', body: data, token })
-}
+export const createJob = (data: { title: string; company: string; description: string }) =>
+  apiClient.post<Job>('/jobs', data).then((r) => r.data)
 
-export function deleteJob(token: string, jobId: string): Promise<void> {
-  return fetchApi<void>({ method: 'DELETE', path: `/jobs/${jobId}`, token })
-}
+export const deleteJob = (jobId: string) =>
+  apiClient.delete(`/jobs/${jobId}`)
 
-export function clearJobs(token: string): Promise<void> {
-  return fetchApi<void>({ method: 'DELETE', path: '/jobs', token })
-}
+export const clearJobs = () =>
+  apiClient.delete('/jobs')
 
-export function updateJobStatus(
-  token: string,
-  jobId: string,
-  status: JobStatus,
-): Promise<{ id: string; status: JobStatus }> {
-  return fetchApi<{ id: string; status: JobStatus }>({
-    method: 'PATCH',
-    path: `/jobs/${jobId}/status`,
-    body: { status },
-    token,
-  })
-}
+export const updateJobStatus = (jobId: string, status: JobStatus) =>
+  apiClient.patch<{ id: string; status: JobStatus }>(`/jobs/${jobId}/status`, { status }).then((r) => r.data)
+
+export const extractMetadata = (description: string) =>
+  apiClient.post<{ title: string; company: string }>('/jobs/extract', { description }).then((r) => r.data)

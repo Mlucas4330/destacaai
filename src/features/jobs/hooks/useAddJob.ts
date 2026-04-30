@@ -1,15 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useCreateJob } from './useJobs'
-import { useAuthContext } from '@/features/auth/stores/auth'
-import { createApiClient } from '@/lib/api.client'
+import { chromeStorageClient } from '@/lib/chromeStorageClient'
+import { extractMetadata } from '@/features/jobs/api/jobs'
 import type { Job } from '@/shared/types'
 import { STORAGE_KEYS } from '@/shared/constants'
-
-interface PendingStorage {
-  pendingDescription?: string
-  pendingTitle?: string
-  pendingCompany?: string
-}
 
 const useAddJob = (onSave: (job: Job) => void) => {
   const [description, setDescription] = useState('')
@@ -18,39 +12,34 @@ const useAddJob = (onSave: (job: Job) => void) => {
   const [isExtracting, setIsExtracting] = useState(false)
 
   const createJob = useCreateJob()
-  const { getToken } = useAuthContext()
 
   useEffect(() => {
-    const api = createApiClient(getToken)
-    chrome.storage.local.get(
-      [STORAGE_KEYS.PENDING_DESCRIPTION, STORAGE_KEYS.PENDING_TITLE, STORAGE_KEYS.PENDING_COMPANY],
-      async (result: PendingStorage) => {
-        const desc = result.pendingDescription ?? ''
-        const pendingTitle = result.pendingTitle ?? ''
-        const pendingCompany = result.pendingCompany ?? ''
+    Promise.all([
+      chromeStorageClient.get<string>(STORAGE_KEYS.PENDING_DESCRIPTION),
+      chromeStorageClient.get<string>(STORAGE_KEYS.PENDING_TITLE),
+      chromeStorageClient.get<string>(STORAGE_KEYS.PENDING_COMPANY),
+    ]).then(async ([desc, pendingTitle, pendingCompany]) => {
+      if (desc) setDescription(desc)
+      if (pendingTitle) setTitle(pendingTitle)
+      if (pendingCompany) setCompany(pendingCompany)
 
-        if (desc) setDescription(desc)
-        if (pendingTitle) setTitle(pendingTitle)
-        if (pendingCompany) setCompany(pendingCompany)
-
-        if (desc && (!pendingTitle || !pendingCompany)) {
-          setIsExtracting(true)
-          try {
-            const extracted = await api.post<{ title: string; company: string }>('/guest/extract', { description: desc })
-            if (!pendingTitle && extracted.title) setTitle(extracted.title)
-            if (!pendingCompany && extracted.company) setCompany(extracted.company)
-          } catch {
-            // extraction failure is non-fatal, user can fill in manually
-          } finally {
-            setIsExtracting(false)
-          }
+      if (desc && (!pendingTitle || !pendingCompany)) {
+        setIsExtracting(true)
+        try {
+          const extracted = await extractMetadata(desc)
+          if (!pendingTitle && extracted.title) setTitle(extracted.title)
+          if (!pendingCompany && extracted.company) setCompany(extracted.company)
+        } catch {
+          // extraction failure is non-fatal, user can fill in manually
+        } finally {
+          setIsExtracting(false)
         }
-      },
-    )
+      }
+    })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const persistField = useCallback((field: string, value: string) => {
-    chrome.storage.local.set({ [field]: value })
+    chromeStorageClient.set(field, value)
   }, [])
 
   const updateTitle = useCallback((value: string) => {
@@ -72,8 +61,7 @@ const useAddJob = (onSave: (job: Job) => void) => {
     if (!description.trim() || isExtracting) return
     setIsExtracting(true)
     try {
-      const api = createApiClient(getToken)
-      const extracted = await api.post<{ title: string; company: string }>('/guest/extract', { description: description.trim() })
+      const extracted = await extractMetadata(description.trim())
       if (extracted.title) { setTitle(extracted.title); persistField(STORAGE_KEYS.PENDING_TITLE, extracted.title) }
       if (extracted.company) { setCompany(extracted.company); persistField(STORAGE_KEYS.PENDING_COMPANY, extracted.company) }
     } catch {
@@ -81,14 +69,14 @@ const useAddJob = (onSave: (job: Job) => void) => {
     } finally {
       setIsExtracting(false)
     }
-  }, [description, isExtracting, getToken, persistField])
+  }, [description, isExtracting, persistField])
 
   const saveJob = useCallback(() => {
     createJob.mutate(
       { title: title.trim(), company: company.trim(), description: description.trim() },
       {
         onSuccess: (job) => {
-          chrome.storage.local.remove([STORAGE_KEYS.PENDING_DESCRIPTION, STORAGE_KEYS.PENDING_TITLE, STORAGE_KEYS.PENDING_COMPANY])
+          chromeStorageClient.remove([STORAGE_KEYS.PENDING_DESCRIPTION, STORAGE_KEYS.PENDING_TITLE, STORAGE_KEYS.PENDING_COMPANY])
           onSave(job as Job)
         },
       },

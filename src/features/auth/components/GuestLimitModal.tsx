@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion'
-import { useGuestContext } from '@/features/auth/stores/GuestContext'
+import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@/features/auth/stores/auth'
 import Button from '@/shared/components/Button'
 
 export default function GuestLimitModal() {
-  const { handleSignIn, handleSignUp, dismissLimitModal, showLimitModal } = useGuestContext()
+  const { showLimitModal, dismissLimitModal } = useAuthStore()
+  const navigate = useNavigate()
 
-  if (!showLimitModal) return
+  if (!showLimitModal) return null
 
   return (
     <div className='absolute inset-0 z-50 flex items-center justify-center bg-black/40 px-4'>
@@ -23,10 +25,10 @@ export default function GuestLimitModal() {
         </div>
 
         <div className='flex flex-col gap-2'>
-          <Button variant='primary' className='w-full text-xs' onClick={handleSignUp}>
+          <Button variant='primary' className='w-full text-xs' onClick={() => { dismissLimitModal(); navigate('/sign-up') }}>
             Create free account
           </Button>
-          <Button variant='secondary' className='w-full text-xs' onClick={handleSignIn}>
+          <Button variant='secondary' className='w-full text-xs' onClick={() => { dismissLimitModal(); navigate('/sign-in') }}>
             Sign in
           </Button>
           <button

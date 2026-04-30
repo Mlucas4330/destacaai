@@ -5,14 +5,14 @@ import Input from '@/shared/components/Input'
 import Button from '@/shared/components/Button'
 import useAddJob from '../hooks/useAddJob'
 import { useUser } from '@/features/config/hooks/useUser'
-import { useAuthContext } from '@/features/auth/stores/auth'
+import { useAuthStore } from '@/features/auth/stores/auth'
+import { chromeStorageClient } from '@/lib/chromeStorageClient'
 import { STORAGE_KEYS } from '@/shared/constants'
 
 const AddJob = () => {
   const navigate = useNavigate()
   const { data: user } = useUser()
-
-  const { isSignedIn } = useAuthContext()
+  const { isSignedIn } = useAuthStore()
 
   const {
     title,
@@ -93,7 +93,7 @@ const AddJob = () => {
         <Button
           variant='secondary'
           onClick={() => {
-            chrome.storage.local.remove([STORAGE_KEYS.PENDING_DESCRIPTION, STORAGE_KEYS.PENDING_TITLE, STORAGE_KEYS.PENDING_COMPANY])
+            chromeStorageClient.remove([STORAGE_KEYS.PENDING_DESCRIPTION, STORAGE_KEYS.PENDING_TITLE, STORAGE_KEYS.PENDING_COMPANY])
             navigate('/')
           }}
           className='flex-1'

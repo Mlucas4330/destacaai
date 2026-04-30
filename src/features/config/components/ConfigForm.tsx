@@ -1,19 +1,17 @@
 import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthContext } from '@/features/auth/stores/auth'
-import { useGuestContext } from '@/features/auth/stores/GuestContext'
+import { useAuthStore } from '@/features/auth/stores/auth'
 import toast from 'react-hot-toast'
 import { AnimatePresence, motion } from 'framer-motion'
 import { FileText, Trash2, Upload, ExternalLink } from 'lucide-react'
 import { useUser, useUploadCV, useDeleteCV } from '../hooks/useUser'
-import { createApiClient } from '@/lib/api.client'
+import { apiClient } from '@/lib/apiClient'
 import Button from '@/shared/components/Button'
 import IconButton from '@/shared/components/IconButton'
 import { MAX_SIZE_BYTES, MAX_SIZE_MB, FREE_TIER_LIMIT } from '@/shared/constants'
 
 const ConfigForm = () => {
-  const { signOut, getToken, isSignedIn } = useAuthContext()
-  const { guestGenerationsUsed } = useGuestContext()
+  const { signOut, isSignedIn } = useAuthStore()
   const { data: user } = useUser()
   const uploadCV = useUploadCV()
   const deleteCV = useDeleteCV()
@@ -39,9 +37,8 @@ const ConfigForm = () => {
 
   const handleUpgrade = async () => {
     try {
-      const api = createApiClient(getToken)
-      const { checkoutUrl } = await api.post<{ checkoutUrl: string }>('/stripe/checkout')
-      chrome.tabs.create({ url: checkoutUrl })
+      const res = await apiClient.post<{ checkoutUrl: string }>('/stripe/checkout')
+      chrome.tabs.create({ url: res.data.checkoutUrl })
     } catch {
       toast.error('Failed to start checkout. Please try again.')
     }
@@ -104,10 +101,8 @@ const ConfigForm = () => {
       <div className='flex flex-col gap-6'>
         <div>
           <p className='text-xs font-medium text-navy-muted'>CV Generations</p>
-          <p className='text-sm text-navy'>{guestGenerationsUsed} / {FREE_TIER_LIMIT} free</p>
+          <p className='text-sm text-navy'>0 / {FREE_TIER_LIMIT} free</p>
         </div>
-
-        {cvSection}
 
         <div className='flex flex-col gap-2'>
           <Button variant='primary' className='w-full text-xs' onClick={() => navigate('/sign-up')}>

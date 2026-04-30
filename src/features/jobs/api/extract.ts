@@ -1,4 +1,4 @@
-import { createApiClient } from '@/lib/api.client'
+import { createApiClient } from '@/lib/apiClient'
 
 export interface ExtractedJobDetails {
   title: string

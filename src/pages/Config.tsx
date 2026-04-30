@@ -8,9 +8,7 @@ const Config = () => {
         <h2 className='text-sm font-semibold text-navy'>Settings</h2>
         <p className='text-xs text-navy-muted mt-0.5'>Changes are saved automatically.</p>
       </div>
-
       <ConfigForm />
-
       <div className='border-t border-border pt-4'>
         <ClearData />
       </div>

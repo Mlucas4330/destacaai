@@ -1,4 +1,4 @@
-import { fetchApi } from '@/lib/api.client'
+import { apiClient } from '@/lib/apiClient'
 import type { UserProfile } from '@/shared/types'
 
 export interface UploadCVResponse {
@@ -6,27 +6,14 @@ export interface UploadCVResponse {
   cvR2Key: string
 }
 
-export function getUserProfile(token: string): Promise<UserProfile> {
-  return fetchApi<UserProfile>({ method: 'GET', path: '/users/me', token })
-}
+export const getUserProfile = () =>
+  apiClient.get<UserProfile>('/users/me').then((r) => r.data)
 
-export function uploadCV(token: string, file: File): Promise<UploadCVResponse> {
+export const uploadCV = (file: File) => {
   const formData = new FormData()
   formData.append('file', file)
-  return fetchApi<UploadCVResponse>({ method: 'POST', path: '/cv/upload', body: formData, token })
+  return apiClient.post<UploadCVResponse>('/cv/upload', formData).then((r) => r.data)
 }
 
-export function uploadCVGuest(guestId: string, file: File): Promise<UploadCVResponse> {
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('guestId', guestId)
-  return fetchApi<UploadCVResponse>({ method: 'POST', path: '/guest/cv/upload', body: formData })
-}
-
-export function deleteCV(token: string): Promise<void> {
-  return fetchApi<void>({ method: 'DELETE', path: '/cv', token })
-}
-
-export function deleteCVGuest(guestId: string, cvR2Key: string): Promise<void> {
-  return fetchApi<void>({ method: 'DELETE', path: '/guest/cv', body: { guestId, cvR2Key } })
-}
+export const deleteCV = () =>
+  apiClient.delete('/cv')

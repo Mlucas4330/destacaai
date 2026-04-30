@@ -1,8 +1,8 @@
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { ApiError } from '@/lib/api.client'
 import { forgotPassword } from '../services/auth'
+import { chromeStorageClient } from '@/lib/chromeStorageClient'
 import { STORAGE_KEYS } from '../constants'
 import { ForgotPasswordSchema } from '../schemas'
 
@@ -12,17 +12,11 @@ export function useForgotPassword() {
   const mutation = useMutation({
     mutationFn: ({ email }: { email: string }) => forgotPassword(email),
     onSuccess: async (_, { email }) => {
-      await chrome.storage.local.set({
-        [STORAGE_KEYS.PENDING_VERIFICATION]: { email, purpose: 'password-reset' },
-      })
+      await chromeStorageClient.set(STORAGE_KEYS.PENDING_VERIFICATION, { email, purpose: 'password-reset' })
       navigate('/verify-code', { state: { email, purpose: 'password-reset' } })
     },
-    onError(err) {
-      if (err instanceof ApiError) {
-        toast.error(err.message)
-      } else {
-        toast.error('Could not reach server. Please try again.')
-      }
+    onError(err: Error & { response?: { data?: { error?: string } } }) {
+      toast.error(err.response?.data?.error ?? err.message ?? 'Could not reach server. Please try again.')
     },
   })
 

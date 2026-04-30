@@ -1,24 +1,21 @@
+import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { signIn } from '../services/auth'
 import { useAuthStore } from '../stores/auth'
-// import { useMigrateGuest } from './useMigrateGuest'
 import { SignInSchema } from '../schemas'
-import { useState } from 'react'
 
 export function useSignIn() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  // const { login } = useAuthStore()
-  // const migrateGuest = useMigrateGuest()
+  const { login } = useAuthStore()
   const navigate = useNavigate()
 
   const mutation = useMutation({
     mutationFn: signIn,
     onSuccess: async (data) => {
-      // await login(data.token, data.user.email)
-      // await migrateGuest()
+      await login(data.token, data.user.email)
       navigate('/', { replace: true })
     },
     onError() {
