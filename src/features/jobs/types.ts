@@ -1,10 +1,3 @@
-export interface JobListProps {
-  jobs: Job
-  onDelete: (id: string) => void
-  onGenerate: (id: string) => void
-  onClearAll: () => void
-}
-
 export type JobStatus = 'saved' | 'applied' | 'interview' | 'rejected' | 'offer'
 export type ProcessingStatus = 'idle' | 'queued' | 'processing' | 'done' | 'failed'
 
@@ -27,14 +20,6 @@ export interface Job {
   generatedCvAtsExplanation: string | null
 }
 
-export interface UserProfile {
-  id: string
-  email: string
-  tier: 'free' | 'paid'
-  generationsUsed: number
-  generationsLimit: number
-  cvFileName: string | null
-  hasCv: boolean
-  firstName: string | null
-  lastName: string | null
+export interface JobListProps {
+  jobs: Job[]
 }

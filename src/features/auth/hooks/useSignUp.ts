@@ -1,48 +1,50 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { signUp } from '../services/auth'
-import { chromeStorageClient } from '@/lib/chromeStorageClient'
+import type { z } from 'zod'
+import { signUp } from '../api'
+import { chromeStorageClient } from '@/lib/storageClient'
 import { STORAGE_KEYS } from '../constants'
 import { SignUpSchema } from '../schemas'
 
+type SignUpInput = z.infer<typeof SignUpSchema>
+
 export function useSignUp() {
-  const [email, setEmailState] = useState('')
+  const { register, handleSubmit, formState, setValue, control } = useForm<SignUpInput>({
+    resolver: zodResolver(SignUpSchema),
+  })
   const navigate = useNavigate()
+  const email = useWatch({ control, name: 'email' })
 
   useEffect(() => {
     chromeStorageClient.get<{ email?: string }>(STORAGE_KEYS.PENDING_SIGNUP).then((draft) => {
-      if (draft?.email) setEmailState(draft.email)
+      if (draft?.email) setValue('email', draft.email)
     })
-  }, [])
+  }, [setValue])
 
-  const handleEmailChange = async (v: string) => {
-    setEmailState(v)
-    const current = (await chromeStorageClient.get<{ email?: string }>(STORAGE_KEYS.PENDING_SIGNUP)) ?? {}
-    chromeStorageClient.set(STORAGE_KEYS.PENDING_SIGNUP, { ...current, email: v })
-  }
+  useEffect(() => {
+    if (!email) return
+    chromeStorageClient.get<{ email?: string }>(STORAGE_KEYS.PENDING_SIGNUP).then((current) => {
+      chromeStorageClient.set(STORAGE_KEYS.PENDING_SIGNUP, { ...current, email })
+    })
+  }, [email])
 
   const mutation = useMutation({
-    mutationFn: ({ password }: { password: string }) => signUp(email, password),
-    onSuccess: async () => {
+    mutationFn: (data: SignUpInput) => signUp(data.email, data.password),
+    onSuccess: async (_, { email }) => {
       await chromeStorageClient.remove(STORAGE_KEYS.PENDING_SIGNUP)
       await chromeStorageClient.set(STORAGE_KEYS.PENDING_VERIFICATION, { email, purpose: 'email-verification' })
       navigate('/verify-code', { state: { email, purpose: 'email-verification' } })
     },
-    onError(err: Error & { response?: { data?: { error?: string } } }) {
-      toast.error(err.response?.data?.error ?? err.message ?? 'Could not reach server. Please try again.')
+    onError(err: Error) {
+      toast.error(err.message ?? 'Could not reach server. Please try again.')
     },
   })
 
-  const submit = (password: string) => {
-    const result = SignUpSchema.safeParse({ email, password })
-    if (!result.success) {
-      toast.error(result.error.issues[0].message)
-      return
-    }
-    mutation.mutate({ password })
-  }
+  const onSubmit = handleSubmit((data) => mutation.mutate(data))
 
-  return { email, handleEmailChange, submit, isPending: mutation.isPending }
+  return { register, formState, onSubmit, isPending: mutation.isPending }
 }

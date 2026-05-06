@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { chromeStorageClient } from '@/lib/chromeStorageClient'
-import { STORAGE_KEYS } from '@/shared/constants'
+import { chromeStorageClient } from '@/lib/storageClient'
+import { STORAGE_KEYS } from '../constants'
 
 export function usePendingDescription(enabled: boolean) {
   const navigate = useNavigate()

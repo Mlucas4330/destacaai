@@ -37,11 +37,10 @@ flowchart TD
     A([user opens destacai]) --> B{authenticated?}
 
     B -->|No| G1([add job manually - title/company auto-extracted via AI])
-    G1 --> G2([ATS score shown after CV generation - guest sees score])
-    G2 --> G3{guest generation limit reached? - 5 total / IP-based soft limit}
-    G3 -->|No| G4([queues CV generation - GPT-4o-mini])
-    G3 -->|Yes| C([sign in with email/password])
-    G4 --> G5([custom CV generated and downloaded as PDF])
+    G1 --> G2{guest generation limit reached? - 5 total / IP-based soft limit}
+    G2 -->|No| G3([queues ATS scoring + CV generation - GPT-4o-mini])
+    G2 -->|Yes| C([sign in with email/password])
+    G3 --> G4([ATS score + custom CV ready - guest sees both])
 
     B -->|No| C
     C --> C1([verification code sent via email - expires in 1 hour])
@@ -49,28 +48,23 @@ flowchart TD
     B -->|Yes| D
 
     D -->|No| E([upload CV on config screen - stored in R2])
-    D -->|Yes| F([browse LinkedIn, click on job description])
+    D -->|Yes| F([add job - title/company auto-extracted via AI])
     E --> F
 
-    F --> G([ATS score shown - 0 to 100 with explanation - always free])
-    G --> H{wants to generate custom CV?}
+    F --> G{free tier limit reached?}
+    G -->|No| H([queues ATS scoring + CV generation - GPT-4o-mini])
+    G -->|Yes| I([queues ATS scoring only - upgrade prompt shown])
+    I --> J([upgrade to paid - GPT-4o])
+    J --> K([queues CV generation])
+    H --> L([ATS score + custom CV ready])
+    K --> L
 
-    H -->|No| I([saves job with status badge])
-    H -->|Yes| J{free tier limit reached?}
-
-    J -->|No| K([queues CV generation - GPT-4o-mini])
-    J -->|Yes| L([upgrade to paid - GPT-4o])
-    L --> K
-
-    K --> M([custom CV generated and downloaded as PDF])
-    M --> I
-
-    I --> N([home screen - list saved jobs with status])
-    N --> O([update job status: Applied / Interview / Rejected / Offer])
+    L --> M([home screen - job saved with status badge])
+    M --> N([update job status: Applied / Interview / Rejected / Offer])
 
     style A fill:#c0392b,color:#fff
-    style M fill:#27ae60,color:#fff
-    style G5 fill:#27ae60,color:#fff
+    style L fill:#27ae60,color:#fff
+    style G4 fill:#27ae60,color:#fff
 ```
 
 ## Functional Requirements
@@ -79,15 +73,14 @@ flowchart TD
 - User signs in with email/password using custom auth logic
 - Sign-up triggers a verification code sent via Brevo, expires in 1 hour
 - Forgot password also sends a verification code to the user's email via Brevo
-- Clicking a LinkedIn job description captures it and shows an ATS score (0–100 with explanation)
+- Adding a job automatically queues both ATS scoring and CV generation
 - ATS scoring is always free with no generation limit
-- User can generate a tailored CV (5 generations/month on free tier, unlimited on paid)
+- CV generation is subject to tier limits (5/month on free, unlimited on paid); if the limit is reached, ATS scoring still runs and the user is shown an upgrade prompt
 - Free tier uses GPT-4o-mini; paid tier uses GPT-4o
 - Jobs are synced across devices via backend persistence
 - Each job has a status badge: Applied / Interview / Rejected / Offer
 - User can delete individual jobs or clear all data
 - Saving the same job twice is prevented by checking the job ID
-- If a generation limit is reached, the user is shown an upgrade prompt
 - Config auto-saves without a Save button
 
 ## Tiers
@@ -112,6 +105,8 @@ flowchart TD
 - Expected CV generation time: under 30 seconds with GPT-4o-mini; up to 60 seconds with GPT-4o
 - Transactional emails (verification code, password reset) sent via Brevo
 - Guest CV generation is limited to 5 total per `guestId`; a secondary IP-based check blocks further generations if the same IP is seen with more than `IP_GUEST_LIMIT` distinct guestIds within 24 hours (default: 3)
+- `GET /users/me` accepts both Bearer JWT and `X-Guest-Id` so guests see their live generation count; `POST /users/me` (email upsert) stays JWT-only
+- Backend `npm run build` runs `rm -rf dist && tsc && tsc-alias && cp src/assets/*.md dist/assets/` — the clean step prevents stale compiled files from a previous folder layout, the copy step is needed because Nixpacks (Railway's default builder) doesn't run the Dockerfile's separate copy command and `tsc` only emits TypeScript output
 
 ---
 
@@ -135,33 +130,68 @@ Infrastructure
   └── Cloudflare R2             - CV PDF file storage
 ```
 
-### Component Structure
-
-Components are split by feature. Shared components are reused across features.
+**Backend folder structure (feature-based):**
 
 ```
 src/
 ├── features/
+│   ├── auth/        # router, controller, service, repository, dto, model
+│   ├── jobs/        # router, controller, service, repository, dto, model
+│   │                # ↑ owns ATS scoring triggers and CV generation triggers
+│   ├── cv/          # router, controller, service, dto, model
+│   ├── users/       # router, controller, service, repository, dto, model
+│   └── stripe/      # router, controller, service
+├── workers/         # cvProcessor, atsProcessor, guestCleanup
+├── db/              # schema, client, migrations
+├── lib/             # llm, r2, redis, jwt, pdf, queue — pure infrastructure
+└── shared/          # shared Zod schemas, error types
+```
+
+Each feature's `model.ts` defines the TypeScript domain types for its entities (e.g. `Job`, `User`). Repositories map Drizzle rows to these types; services consume them. This keeps business logic decoupled from the ORM schema.
+
+### Component Structure
+
+Components are split by feature. Shared components are reused across features.
+
+**Rules:**
+- **Components are pure UI** — no API calls, no business logic. Props in, JSX out.
+- **Hooks own all logic** — mutations, queries, validation, navigation, toasts.
+- **`api.ts` per feature** — the only file that calls axios within a feature.
+- **`shared/utils/`** — pure functions with no side effects, no React, no axios.
+- **One query per resource** — `/jobs` returns each row with status, ATS scores, and generation state populated. No per-row endpoints; one polling stream is the truth.
+
+```
+src/
+├── features/
+│   ├── auth/
+│   │   ├── components/    # pure UI — SignInForm, SignUpForm, GuestLimitModal, etc.
+│   │   ├── hooks/         # useSignIn, useSignUp, useVerifyCode, useResetPassword, useMigrateGuest
+│   │   ├── stores/        # auth.ts (Zustand)
+│   │   ├── schemas.ts     # Zod schemas used with React Hook Form
+│   │   └── api.ts         # all auth requests (axios)
 │   ├── jobs/
-│   │   ├── components/    # JobList, JobItem, AddJob, GenerateCV, ATSScore, EmptyState
-│   │   ├── hooks/         # useJobs, useGenerateCV, useATSScore, useSelectedJob
-│   │   └── services/      # cvGenerator, atsChecker
+│   │   ├── components/    # pure UI — JobList, JobItem, AddJob, NoCvState, EmptyState
+│   │   ├── hooks/         # useJobs, useCreateJob, useDeleteJob, useUpdateJobStatus, useDownloadCV
+│   │   ├── schemas.ts
+│   │   └── api.ts         # all job + generation requests (ATS data carried by /jobs)
 │   └── config/
-│       ├── components/    # ConfigForm, CVUpload
-│       ├── hooks/         # useConfig, useCV
-│       └── index.ts
+│       ├── components/    # pure UI — ConfigForm, CVUpload
+│       ├── hooks/         # useUser, useUploadCV, useDeleteCV
+│       └── api.ts         # cv upload, checkout requests
 ├── shared/
-│   ├── components/        # Button, IconButton, Input
-│   ├── hooks/             # useStorage
-│   └── types.ts / schemas.ts / constants.ts
-└── App.tsx
+│   ├── components/        # Button, IconButton, Input, Spinner, NavBar
+│   ├── utils/             # pure utility functions (formatters, helpers, etc.)
+│   └── constants.ts
+└── lib/                   # apiClient.ts, queryClient.ts, chromeStorageClient.ts, localStorageClient.ts
 ```
 
 ### State Management
 
-React Query is the only mechanism for server state in the extension - no raw `fetch`, no `useEffect` data fetching. React Query handles caching, background refetching, loading and error states.
+Three layers, each with a clear scope:
 
-Local UI state (form inputs, selected job) stays in React component state. Nothing is written to `chrome.storage.local` or IndexedDB directly from components.
+- **Zustand** — auth state and any cross-component app state that isn't server data (e.g. modals, flags that outlive a single component).
+- **React Query** — all server state. No raw `fetch`, no `useEffect` for data fetching. Handles caching, background refetching, loading and error states. Mutations write optimistically where safe (status changes, deletes) via `onMutate` + rollback on error; CV upload/delete use `setQueryData` instead of `invalidateQueries` to skip the redundant refetch.
+- **React Hook Form + Zod** — all form state. Components register fields; hooks own the submit handler and wire it to a React Query mutation.
 
 ---
 
@@ -191,6 +221,22 @@ Clerk was the original choice and ships `@clerk/chrome-extension` specifically f
 
 The LLM returns structured JSON validated against a Zod schema. The worker renders the PDF server-side using `@react-pdf/renderer` and returns it to the extension for download. Both LLM call and PDF generation happen on the backend.
 
+### One endpoint per resource
+
+`/jobs` already returns each row with `atsStatus`, `atsScore`, `generatedCvAtsStatus`, and `generatedCvAtsScore` populated. The extension reads both ATS tracks directly from a single polling stream rather than pulling each job's score from a separate `/jobs/:jobId/ats` endpoint. Cuts request volume from N+1 polls per cycle (where N = pending jobs) down to a single `/jobs` poll, regardless of job count. The re-queue safety net for stuck tailored ATS jobs lives inside `listJobs` now and fires on every poll, so a failed enqueue doesn't leave a row stuck in `idle`.
+
+### Optimistic mutations
+
+Status changes and deletes write to the React Query cache via `onMutate` and roll back on error. The cache can briefly disagree with the server on slow networks, but the status badge moves the instant a button is clicked instead of 200–500ms after. CV upload/delete use `setQueryData` to skip the redundant refetch a plain `invalidateQueries` would trigger.
+
+### Re-extract from R2 instead of passing CV text
+
+The CV worker could pass the text it built from the LLM output to the ATS worker through the queue payload, saving a PDF parse. It doesn't. The ATS worker always reads the just-rendered PDF from R2 and extracts its text — same path used for uploaded CVs. Costs ~hundreds of milliseconds per scoring; gained: a single source of truth (the actual PDF the user downloads), no DB column to persist text, no queue field to keep in sync.
+
+### Live counter without a persistent layout
+
+The generations counter sits inside the `/config` page rather than the global NavBar. Keeping it scoped to one page avoids cluttering the chrome of every screen, and React Query still updates it the moment a CV completes: `useJobs` watches for any row transitioning `cvGenerationStatus → 'done'` and calls `qc.refetchQueries` on the user query. `refetchQueries` (not `invalidateQueries`) so the user profile refreshes even when no `useUser` observer is currently mounted — the counter is correct on the next visit to `/config` without waiting for `staleTime` to expire.
+
 ---
 
 ## Libraries
@@ -198,8 +244,9 @@ The LLM returns structured JSON validated against a Zod schema. The worker rende
 **Extension:**
 
 - **Custom auth** - email/password with JWT sessions, verification codes, and password reset via Brevo
+- **Zustand** - app-level state (auth, cross-component flags, modals)
 - **React Query** - server state, caching, background sync
-- **Zod** - schema validation for API responses
+- **React Hook Form + Zod** - form state and schema validation; components register fields, hooks own submission
 - **Tailwind CSS v4** - utility-first styling
 - **Framer Motion** - animations and page transitions
 - **React Router DOM** - in-extension navigation
@@ -236,5 +283,7 @@ The LLM returns structured JSON validated against a Zod schema. The worker rende
 
 ## How ATS Scoring Works
 
-The ATS check runs as a separate, lighter LLM call, always free, no generation limit. The model compares the job description keywords and requirements against the user's current CV and returns a score from 0 to 100 with a plain-language explanation of what's missing. This is shown immediately after a job is captured, before the user decides whether to generate a tailored CV.
+The ATS check runs as a separate, lighter LLM call, always free, no generation limit. When a job is added, ATS scoring is automatically enqueued alongside CV generation. The model compares the job description keywords and requirements against the user's current CV and returns a score from 0 to 100 with a plain-language explanation of what's missing. A second ATS score is also computed after CV generation completes, so the user can compare their original CV score against the generated one.
+
+Both tracks (`uploaded` and `generated`) share the same worker and the same `scoreCV` function — only the R2 key differs. Scores and explanations are written back onto the job row, so the extension reads them straight from `/jobs` without a dedicated ATS endpoint. If a row ever shows `cvGenerationStatus === 'done'` with `generatedCvAtsStatus === 'idle'` (e.g. the queue add failed between two operations), the next `/jobs` poll re-enqueues the tailored ATS job automatically.
 

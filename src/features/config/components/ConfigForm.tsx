@@ -1,54 +1,33 @@
 import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/features/auth/stores/auth'
-import toast from 'react-hot-toast'
 import { AnimatePresence, motion } from 'framer-motion'
 import { FileText, Trash2, Upload, ExternalLink } from 'lucide-react'
-import { useUser, useUploadCV, useDeleteCV } from '../hooks/useUser'
-import { apiClient } from '@/lib/apiClient'
+import { useUser, useUploadCV, useDeleteCV, useCheckout } from '../hooks/useUser'
 import Button from '@/shared/components/Button'
 import IconButton from '@/shared/components/IconButton'
-import { MAX_SIZE_BYTES, MAX_SIZE_MB, FREE_TIER_LIMIT } from '@/shared/constants'
 
 const ConfigForm = () => {
-  const { signOut, isSignedIn } = useAuthStore()
+  const { signOut, isSignedIn, cvFileName } = useAuthStore()
   const { data: user } = useUser()
   const uploadCV = useUploadCV()
   const deleteCV = useDeleteCV()
+  const checkout = useCheckout()
   const inputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.type !== 'application/pdf') {
-      toast.error('Only PDF files are supported.')
-      return
-    }
-    if (file.size > MAX_SIZE_BYTES) {
-      toast.error('File size must be 10 MB or less.')
-      return
-    }
-    uploadCV.mutate(file, {
-      onError: (err) => toast.error(err.message ?? 'Upload failed.'),
-    })
+    uploadCV.mutate(file)
     if (inputRef.current) inputRef.current.value = ''
-  }
-
-  const handleUpgrade = async () => {
-    try {
-      const res = await apiClient.post<{ checkoutUrl: string }>('/stripe/checkout')
-      chrome.tabs.create({ url: res.data.checkoutUrl })
-    } catch {
-      toast.error('Failed to start checkout. Please try again.')
-    }
   }
 
   const cvSection = (
     <div className='flex flex-col gap-1'>
       <label className='text-xs font-medium text-navy-muted'>CV (PDF)</label>
       <AnimatePresence mode='wait'>
-        {user?.cvFileName ? (
+        {(user?.cvFileName ?? uploadCV.data?.cvFileName ?? cvFileName) ? (
           <motion.div
             key='uploaded'
             initial={{ opacity: 0, y: 4 }}
@@ -59,7 +38,7 @@ const ConfigForm = () => {
           >
             <div className='flex items-center gap-2 min-w-0'>
               <FileText size={14} className='text-accent-text shrink-0' />
-              <span className='text-xs text-navy truncate'>{user.cvFileName}</span>
+              <span className='text-xs text-navy truncate'>{user?.cvFileName ?? uploadCV.data?.cvFileName ?? cvFileName}</span>
             </div>
             <IconButton
               icon={Trash2}
@@ -72,7 +51,7 @@ const ConfigForm = () => {
         ) : (
           <motion.label
             key='upload'
-            htmlFor="cv-upload"
+            htmlFor='cv-upload'
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
@@ -81,13 +60,13 @@ const ConfigForm = () => {
             className='flex items-center justify-center gap-2 px-3 py-3 rounded-xl border border-dashed border-border hover:border-navy-muted hover:bg-surface transition-colors cursor-pointer'
           >
             <Upload size={14} className='text-navy-muted' />
-            <span className='text-xs text-navy-muted'>Upload PDF (max {MAX_SIZE_MB} MB)</span>
+            <span className='text-xs text-navy-muted'>Upload PDF (max 10 MB)</span>
           </motion.label>
         )}
       </AnimatePresence>
       <input
         ref={inputRef}
-        id="cv-upload"
+        id='cv-upload'
         type='file'
         accept='application/pdf'
         onChange={handleFileChange}
@@ -96,13 +75,23 @@ const ConfigForm = () => {
     </div>
   )
 
+  const generationsBlock = (
+    <div>
+      <p className='text-xs font-medium text-navy-muted'>CV Generations</p>
+      <p className='text-sm text-navy'>
+        {user?.tier === 'paid'
+          ? 'Unlimited'
+          : `${user?.generationsUsed ?? 0} / ${user?.generationsLimit ?? 5} this month`}
+      </p>
+    </div>
+  )
+
   if (!isSignedIn) {
     return (
       <div className='flex flex-col gap-6'>
-        <div>
-          <p className='text-xs font-medium text-navy-muted'>CV Generations</p>
-          <p className='text-sm text-navy'>0 / {FREE_TIER_LIMIT} free</p>
-        </div>
+        {generationsBlock}
+
+        {cvSection}
 
         <div className='flex flex-col gap-2'>
           <Button variant='primary' className='w-full text-xs' onClick={() => navigate('/sign-up')}>
@@ -128,21 +117,15 @@ const ConfigForm = () => {
             <Button
               variant='primary'
               className='text-xs px-3 py-1.5'
-              onClick={handleUpgrade}
+              onClick={() => checkout.mutate()}
+              disabled={checkout.isPending}
             >
               Upgrade <ExternalLink size={11} className='inline ml-1' />
             </Button>
           )}
         </div>
 
-        <div>
-          <p className='text-xs font-medium text-navy-muted'>CV Generations</p>
-          <p className='text-sm text-navy'>
-            {user?.tier === 'paid'
-              ? 'Unlimited'
-              : `${user?.generationsUsed ?? 0} / ${user?.generationsLimit ?? 5} this month`}
-          </p>
-        </div>
+        {generationsBlock}
       </div>
 
       {cvSection}

@@ -1,17 +1,30 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useNavigate } from 'react-router-dom'
+import { z } from 'zod'
 import { useCreateJob } from './useJobs'
-import { chromeStorageClient } from '@/lib/chromeStorageClient'
-import { extractMetadata } from '@/features/jobs/api/jobs'
-import type { Job } from '@/shared/types'
-import { STORAGE_KEYS } from '@/shared/constants'
+import { chromeStorageClient } from '@/lib/storageClient'
+import { STORAGE_KEYS } from '../constants'
+import { AddJobSchema } from '../schemas'
+import { extractMetadata } from '../api'
 
-const useAddJob = (onSave: (job: Job) => void) => {
-  const [description, setDescription] = useState('')
-  const [title, setTitle] = useState('')
-  const [company, setCompany] = useState('')
+type AddJobInput = z.infer<typeof AddJobSchema>
+
+const PENDING_KEYS = [STORAGE_KEYS.PENDING_DESCRIPTION, STORAGE_KEYS.PENDING_TITLE, STORAGE_KEYS.PENDING_COMPANY]
+
+const useAddJob = () => {
+  const { register, handleSubmit, formState, setValue, watch } = useForm<AddJobInput>({
+    resolver: zodResolver(AddJobSchema),
+    defaultValues: { title: '', company: '', description: '' },
+  })
   const [isExtracting, setIsExtracting] = useState(false)
-
   const createJob = useCreateJob()
+  const navigate = useNavigate()
+
+  const description = watch('description')
+  const title = watch('title')
+  const company = watch('company')
 
   useEffect(() => {
     Promise.all([
@@ -19,74 +32,64 @@ const useAddJob = (onSave: (job: Job) => void) => {
       chromeStorageClient.get<string>(STORAGE_KEYS.PENDING_TITLE),
       chromeStorageClient.get<string>(STORAGE_KEYS.PENDING_COMPANY),
     ]).then(async ([desc, pendingTitle, pendingCompany]) => {
-      if (desc) setDescription(desc)
-      if (pendingTitle) setTitle(pendingTitle)
-      if (pendingCompany) setCompany(pendingCompany)
+      if (desc) setValue('description', desc)
+      if (pendingTitle) setValue('title', pendingTitle)
+      if (pendingCompany) setValue('company', pendingCompany)
 
       if (desc && (!pendingTitle || !pendingCompany)) {
         setIsExtracting(true)
         try {
           const extracted = await extractMetadata(desc)
-          if (!pendingTitle && extracted.title) setTitle(extracted.title)
-          if (!pendingCompany && extracted.company) setCompany(extracted.company)
+          if (!pendingTitle && extracted.title) setValue('title', extracted.title)
+          if (!pendingCompany && extracted.company) setValue('company', extracted.company)
         } catch {
-          // extraction failure is non-fatal, user can fill in manually
+          // extraction failure is non-fatal
         } finally {
           setIsExtracting(false)
         }
       }
     })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [setValue])
 
-  const persistField = useCallback((field: string, value: string) => {
-    chromeStorageClient.set(field, value)
-  }, [])
+  useEffect(() => { if (title) chromeStorageClient.set(STORAGE_KEYS.PENDING_TITLE, title) }, [title])
+  useEffect(() => { if (company) chromeStorageClient.set(STORAGE_KEYS.PENDING_COMPANY, company) }, [company])
+  useEffect(() => { if (description) chromeStorageClient.set(STORAGE_KEYS.PENDING_DESCRIPTION, description) }, [description])
 
-  const updateTitle = useCallback((value: string) => {
-    setTitle(value)
-    persistField(STORAGE_KEYS.PENDING_TITLE, value)
-  }, [persistField])
-
-  const updateCompany = useCallback((value: string) => {
-    setCompany(value)
-    persistField(STORAGE_KEYS.PENDING_COMPANY, value)
-  }, [persistField])
-
-  const updateDescription = useCallback((value: string) => {
-    setDescription(value)
-    persistField(STORAGE_KEYS.PENDING_DESCRIPTION, value)
-  }, [persistField])
-
-  const extractFromDescription = useCallback(async () => {
-    if (!description.trim() || isExtracting) return
+  const extractFromDescription = async () => {
+    if (!description?.trim() || isExtracting) return
     setIsExtracting(true)
     try {
       const extracted = await extractMetadata(description.trim())
-      if (extracted.title) { setTitle(extracted.title); persistField(STORAGE_KEYS.PENDING_TITLE, extracted.title) }
-      if (extracted.company) { setCompany(extracted.company); persistField(STORAGE_KEYS.PENDING_COMPANY, extracted.company) }
+      if (extracted.title && !title.trim()) setValue('title', extracted.title)
+      if (extracted.company && !company.trim()) setValue('company', extracted.company)
     } catch {
       // extraction failure is non-fatal
     } finally {
       setIsExtracting(false)
     }
-  }, [description, isExtracting, persistField])
+  }
 
-  const saveJob = useCallback(() => {
+  const onSubmit = handleSubmit((data) => {
     createJob.mutate(
-      { title: title.trim(), company: company.trim(), description: description.trim() },
+      { title: data.title.trim(), company: data.company.trim(), description: data.description.trim() },
       {
-        onSuccess: (job) => {
-          chromeStorageClient.remove([STORAGE_KEYS.PENDING_DESCRIPTION, STORAGE_KEYS.PENDING_TITLE, STORAGE_KEYS.PENDING_COMPANY])
-          onSave(job as Job)
+        onSuccess: () => {
+          chromeStorageClient.remove(PENDING_KEYS)
+          navigate('/')
         },
       },
     )
-  }, [title, company, description, createJob, onSave])
+  })
 
-  const isValid = title.trim().length > 0 && company.trim().length > 0 && description.trim().length > 0
-  const isPending = createJob.isPending
-
-  return { title, company, description, updateTitle, updateCompany, updateDescription, saveJob, extractFromDescription, isValid, isPending, isExtracting }
+  return {
+    register,
+    formState,
+    onSubmit,
+    extractFromDescription,
+    description,
+    isExtracting,
+    isPending: createJob.isPending,
+  }
 }
 
 export default useAddJob

@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
-import { Briefcase } from 'lucide-react'
+import { Briefcase, ExternalLink } from 'lucide-react'
+import Button from '@/shared/components/Button'
 
-const EmptyState = () => {
+const NoJobState = () => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -16,11 +17,18 @@ const EmptyState = () => {
       <div>
         <p className='text-sm font-medium text-navy'>No saved jobs yet</p>
         <p className='text-xs text-navy-muted mt-1'>
-          Right-click a job description on LinkedIn to get started.
+          Click on a job description on LinkedIn to get started.
         </p>
       </div>
+      <Button
+        variant='secondary'
+        className='text-xs px-4'
+        onClick={() => chrome.tabs.create({ url: 'https://www.linkedin.com/jobs/collections/recommended/' })}
+      >
+        Browse jobs <ExternalLink size={11} className='inline ml-1' />
+      </Button>
     </motion.div>
   )
 }
 
-export default EmptyState
+export default NoJobState

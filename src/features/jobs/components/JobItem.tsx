@@ -1,14 +1,11 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, X } from 'lucide-react'
-import { apiClient } from '@/lib/apiClient'
-import type { Job, JobStatus } from '@/shared/types'
+import type { Job, JobStatus } from '../types'
 import Button from '@/shared/components/Button'
 import IconButton from '@/shared/components/IconButton'
-import toast from 'react-hot-toast'
-import { useUpdateJobStatus } from '../hooks/useJobs'
-import { useGenerationStatus } from '../hooks/useGenerateCV'
-import { useAtsScore } from '../hooks/useAtsScore'
+import { useUpdateJobStatus, useDownloadCV } from '../hooks/useJobs'
+import { formatDate, scoreColor } from '@/shared/utils/formatters'
 
 const STATUS_LABELS: Record<JobStatus, string> = {
   saved: 'Saved',
@@ -34,60 +31,20 @@ const STATUS_BORDER: Record<JobStatus, string> = {
   offer: 'border-l-green-400',
 }
 
-const formatDate = (iso: string): string => {
-  const diff = Date.now() - new Date(iso).getTime()
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  return `${days} days ago`
-}
-
-const scoreColor = (score: number) =>
-  score >= 70 ? 'text-green-600' : score >= 40 ? 'text-amber-600' : 'text-red-600'
-
 interface JobItemProps {
   job: Job
   onDelete: (id: string) => void
-  onGenerate: (id: string) => void
 }
 
-const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
+const JobItem = ({ job, onDelete }: JobItemProps) => {
   const [showStatusMenu, setShowStatusMenu] = useState(false)
   const [expandedUploaded, setExpandedUploaded] = useState(false)
   const [expandedGenerated, setExpandedGenerated] = useState(false)
   const updateStatus = useUpdateJobStatus()
+  const downloadCV = useDownloadCV(job.id)
 
   const isGenerating = job.cvGenerationStatus === 'queued' || job.cvGenerationStatus === 'processing'
-  const { data: genStatus } = useGenerationStatus(job.id, isGenerating)
-
-  const isAtsPolling = job.generatedCvAtsStatus === 'queued' || job.generatedCvAtsStatus === 'processing'
-  const { data: atsData } = useAtsScore(job.id, isAtsPolling)
-
-  const displayUploadedAtsStatus = atsData?.uploaded.status ?? job.atsStatus
-  const displayUploadedAtsScore = atsData?.uploaded.score ?? job.atsScore
-  const displayUploadedAtsExplanation = atsData?.uploaded.explanation ?? job.atsExplanation
-  const displayGeneratedAtsStatus = atsData?.generated.status ?? job.generatedCvAtsStatus
-  const displayGeneratedAtsScore = atsData?.generated.score ?? job.generatedCvAtsScore
-  const displayGeneratedAtsExplanation = atsData?.generated.explanation ?? job.generatedCvAtsExplanation
-
-  const handleDownload = async () => {
-    try {
-      const res = await apiClient.get<Blob>(`/generate/${job.id}/download`, { responseType: 'blob' })
-      const disposition = res.headers['content-disposition'] as string | undefined
-      const match = disposition?.match(/filename="([^"]+)"/)
-      const fileName = match?.[1] ?? 'cv.pdf'
-      const blobUrl = URL.createObjectURL(res.data)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = fileName
-      a.click()
-      URL.revokeObjectURL(blobUrl)
-    } catch {
-      toast.error('Failed to download CV. Please try again.')
-    }
-  }
-
-  const cvDone = job.cvGenerationStatus === 'done' || genStatus?.status === 'done'
+  const cvDone = job.cvGenerationStatus === 'done'
 
   return (
     <motion.div
@@ -109,29 +66,29 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
           </p>
 
           <div className='flex items-center gap-3 mt-1.5'>
-            {displayUploadedAtsStatus === 'queued' || displayUploadedAtsStatus === 'processing' ? (
+            {job.atsStatus === 'queued' || job.atsStatus === 'processing' ? (
               <p className='text-xs text-navy-muted opacity-60'>Base scoring...</p>
-            ) : displayUploadedAtsStatus === 'done' && displayUploadedAtsScore !== null ? (
+            ) : job.atsStatus === 'done' && job.atsScore !== null ? (
               <button
                 onClick={(e) => { e.stopPropagation(); setExpandedUploaded((v) => !v) }}
                 className='text-xs font-medium text-navy-muted hover:opacity-80 transition-opacity'
               >
-                Base: <span className={scoreColor(displayUploadedAtsScore)}>{displayUploadedAtsScore}/100</span>
+                Base: <span className={scoreColor(job.atsScore)}>{job.atsScore}/100</span>
               </button>
-            ) : displayUploadedAtsStatus === 'failed' ? (
+            ) : job.atsStatus === 'failed' ? (
               <p className='text-xs text-red-400 opacity-80'>Base score failed</p>
             ) : null}
 
-            {displayGeneratedAtsStatus === 'queued' || displayGeneratedAtsStatus === 'processing' ? (
+            {job.generatedCvAtsStatus === 'queued' || job.generatedCvAtsStatus === 'processing' || (job.generatedCvAtsStatus === 'idle' && cvDone) ? (
               <p className='text-xs text-navy-muted opacity-60'>Tailored scoring...</p>
-            ) : displayGeneratedAtsStatus === 'done' && displayGeneratedAtsScore !== null ? (
+            ) : job.generatedCvAtsStatus === 'done' && job.generatedCvAtsScore !== null ? (
               <button
                 onClick={(e) => { e.stopPropagation(); setExpandedGenerated((v) => !v) }}
                 className='text-xs font-medium text-navy-muted hover:opacity-80 transition-opacity'
               >
-                Tailored: <span className={scoreColor(displayGeneratedAtsScore)}>{displayGeneratedAtsScore}/100</span>
+                Tailored: <span className={scoreColor(job.generatedCvAtsScore)}>{job.generatedCvAtsScore}/100</span>
               </button>
-            ) : displayGeneratedAtsStatus === 'failed' ? (
+            ) : job.generatedCvAtsStatus === 'failed' ? (
               <p className='text-xs text-red-400 opacity-80'>Tailored failed</p>
             ) : null}
           </div>
@@ -143,18 +100,19 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
 
         <div className='flex items-center gap-1 shrink-0' onClick={(e) => e.stopPropagation()}>
           {cvDone ? (
-            <Button variant='primary' onClick={handleDownload} className='text-xs px-3 py-1.5'>
-              Download CV
+            <Button
+              variant='primary'
+              onClick={() => downloadCV.mutate()}
+              disabled={downloadCV.isPending}
+              className='text-xs px-3 py-1.5'
+            >
+              {downloadCV.isPending ? 'Downloading...' : 'Download CV'}
             </Button>
           ) : isGenerating ? (
             <Button variant='secondary' disabled className='text-xs px-3 py-1.5 opacity-60'>
               Generating...
             </Button>
-          ) : (
-            <Button variant='primary' onClick={() => onGenerate(job.id)} className='text-xs px-3 py-1.5'>
-              Generate CV
-            </Button>
-          )}
+          ) : null}
           <IconButton
             icon={Trash2}
             label='Delete job'
@@ -165,7 +123,7 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
       </div>
 
       <AnimatePresence>
-        {expandedUploaded && displayUploadedAtsExplanation && (
+        {expandedUploaded && job.atsExplanation && (
           <motion.div
             key='uploaded'
             initial={{ opacity: 0, height: 0 }}
@@ -175,7 +133,7 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
             className='overflow-hidden'
           >
             <div className='relative text-xs text-navy-muted bg-surface border border-border rounded-lg p-2 pr-6 leading-relaxed'>
-              <span className='font-medium text-navy'>Base: </span>{displayUploadedAtsExplanation}
+              <span className='font-medium text-navy'>Base: </span>{job.atsExplanation}
               <button
                 onClick={(e) => { e.stopPropagation(); setExpandedUploaded(false) }}
                 className='absolute top-1.5 right-1.5 text-navy-muted hover:text-navy transition-colors'
@@ -186,7 +144,7 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
             </div>
           </motion.div>
         )}
-        {expandedGenerated && displayGeneratedAtsExplanation && (
+        {expandedGenerated && job.generatedCvAtsExplanation && (
           <motion.div
             key='generated'
             initial={{ opacity: 0, height: 0 }}
@@ -196,7 +154,7 @@ const JobItem = ({ job, onDelete, onGenerate }: JobItemProps) => {
             className='overflow-hidden'
           >
             <div className='relative text-xs text-navy-muted bg-surface border border-border rounded-lg p-2 pr-6 leading-relaxed'>
-              <span className='font-medium text-navy'>Tailored: </span>{displayGeneratedAtsExplanation}
+              <span className='font-medium text-navy'>Tailored: </span>{job.generatedCvAtsExplanation}
               <button
                 onClick={(e) => { e.stopPropagation(); setExpandedGenerated(false) }}
                 className='absolute top-1.5 right-1.5 text-navy-muted hover:text-navy transition-colors'

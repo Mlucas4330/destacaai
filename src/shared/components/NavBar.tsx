@@ -3,9 +3,11 @@ import { NavLink, Outlet } from 'react-router-dom'
 
 const NavBar = () => {
   return (
-    <>
-      <Outlet />
-      <nav className='flex border-t border-border bg-bg'>
+    <div className='flex flex-col h-full'>
+      <div className='flex-1 overflow-y-auto'>
+        <Outlet />
+      </div>
+      <nav className='flex border-t border-border bg-bg shrink-0'>
         <NavLink to='/' className='flex flex-col items-center gap-0.5 py-2 px-6 text-xs transition-colors text-accent-text font-semibold'>
           <Briefcase size={18} />
           Jobs
@@ -15,7 +17,7 @@ const NavBar = () => {
           Settings
         </NavLink>
       </nav>
-    </>
+    </div>
   )
 }
 

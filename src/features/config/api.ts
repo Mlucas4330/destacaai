@@ -6,6 +6,10 @@ export interface UploadCVResponse {
   cvR2Key: string
 }
 
+export interface CheckoutResponse {
+  checkoutUrl: string
+}
+
 export const getUserProfile = () =>
   apiClient.get<UserProfile>('/users/me').then((r) => r.data)
 
@@ -17,3 +21,6 @@ export const uploadCV = (file: File) => {
 
 export const deleteCV = () =>
   apiClient.delete('/cv')
+
+export const startCheckout = () =>
+  apiClient.post<CheckoutResponse>('/stripe/checkout').then((r) => r.data)

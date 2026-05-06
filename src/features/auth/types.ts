@@ -1,4 +1,4 @@
-import type { GuestJob, UserProfile } from "@/shared/types"
+import type { UserProfile } from '@/shared/types'
 
 export interface SignInRequest {
   email: string

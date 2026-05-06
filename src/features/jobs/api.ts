@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/apiClient'
-import type { Job, JobStatus } from '@/shared/types'
+import type { Job, JobStatus } from './types'
 
 export const getJobs = () =>
   apiClient.get<{ jobs: Job[] }>('/jobs').then((r) => r.data.jobs)
@@ -18,3 +18,11 @@ export const updateJobStatus = (jobId: string, status: JobStatus) =>
 
 export const extractMetadata = (description: string) =>
   apiClient.post<{ title: string; company: string }>('/jobs/extract', { description }).then((r) => r.data)
+
+export const downloadGeneratedCV = async (jobId: string): Promise<{ blob: Blob; fileName: string }> => {
+  const res = await apiClient.get<Blob>(`/jobs/${jobId}/download`, { responseType: 'blob' })
+  const disposition = res.headers['content-disposition'] as string | undefined
+  const match = disposition?.match(/filename="([^"]+)"/)
+  const fileName = match?.[1] ?? 'cv.pdf'
+  return { blob: res.data, fileName }
+}

@@ -1,16 +1,24 @@
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { forgotPassword } from '../services/auth'
-import { chromeStorageClient } from '@/lib/chromeStorageClient'
+import type { z } from 'zod'
+import { forgotPassword } from '../api'
+import { chromeStorageClient } from '@/lib/storageClient'
 import { STORAGE_KEYS } from '../constants'
 import { ForgotPasswordSchema } from '../schemas'
 
+type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>
+
 export function useForgotPassword() {
+  const { register, handleSubmit, formState } = useForm<ForgotPasswordInput>({
+    resolver: zodResolver(ForgotPasswordSchema),
+  })
   const navigate = useNavigate()
 
   const mutation = useMutation({
-    mutationFn: ({ email }: { email: string }) => forgotPassword(email),
+    mutationFn: ({ email }: ForgotPasswordInput) => forgotPassword(email),
     onSuccess: async (_, { email }) => {
       await chromeStorageClient.set(STORAGE_KEYS.PENDING_VERIFICATION, { email, purpose: 'password-reset' })
       navigate('/verify-code', { state: { email, purpose: 'password-reset' } })
@@ -20,14 +28,7 @@ export function useForgotPassword() {
     },
   })
 
-  const submit = (email: string) => {
-    const result = ForgotPasswordSchema.safeParse({ email })
-    if (!result.success) {
-      toast.error(result.error.issues[0].message)
-      return
-    }
-    mutation.mutate(result.data)
-  }
+  const onSubmit = handleSubmit((data) => mutation.mutate(data))
 
-  return { submit, isPending: mutation.isPending }
+  return { register, formState, onSubmit, isPending: mutation.isPending }
 }

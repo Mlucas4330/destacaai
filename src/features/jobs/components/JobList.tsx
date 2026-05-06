@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import JobItem from './JobItem'
 import { useStatusHint } from '../hooks/useStatusHint'
+import { useDeleteJob, useClearJobs } from '../hooks/useJobs'
 import type { JobListProps } from '../types'
 
 const listVariants = {
@@ -11,8 +12,10 @@ const listVariants = {
   },
 }
 
-const JobList = ({ jobs, onDelete, onGenerate, onClearAll }: JobListProps) => {
+const JobList = ({ jobs }: JobListProps) => {
   const { showHint, dismissHint } = useStatusHint()
+  const deleteJob = useDeleteJob()
+  const clearJobs = useClearJobs()
 
   return (
     <div className='flex flex-col gap-2 p-3'>
@@ -20,7 +23,7 @@ const JobList = ({ jobs, onDelete, onGenerate, onClearAll }: JobListProps) => {
         <p className='text-xs text-navy-muted'>{jobs.length} job{jobs.length !== 1 ? 's' : ''} saved</p>
         <motion.button
           type='button'
-          onClick={onClearAll}
+          onClick={() => clearJobs.mutate()}
           whileTap={{ scale: 0.95 }}
           className='text-xs text-navy-muted hover:text-danger transition-colors cursor-pointer'
         >
@@ -55,7 +58,7 @@ const JobList = ({ jobs, onDelete, onGenerate, onClearAll }: JobListProps) => {
       >
         <AnimatePresence initial={false}>
           {jobs.map((job) => (
-            <JobItem key={job.id} job={job} onDelete={onDelete} onGenerate={onGenerate} />
+            <JobItem key={job.id} job={job} onDelete={(id) => deleteJob.mutate(id)} />
           ))}
         </AnimatePresence>
       </motion.div>

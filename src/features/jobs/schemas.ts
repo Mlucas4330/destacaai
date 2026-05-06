@@ -32,3 +32,9 @@ export const JobMetadataSchema = z.object({
   title: z.string().describe('The job title'),
   company: z.string().describe('The company name'),
 })
+
+export const AddJobSchema = z.object({
+  title: z.string().min(1, 'Job title is required'),
+  company: z.string().min(1, 'Company is required'),
+  description: z.string().min(1, 'Job description is required'),
+})

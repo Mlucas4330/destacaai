@@ -1,16 +1,23 @@
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { resetPassword } from '../services/auth'
+import type { z } from 'zod'
+import { resetPassword } from '../api'
 import { ResetPasswordSchema } from '../schemas'
 import type { ResetPasswordFormProps } from '../types'
 
+type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>
+
 export function useResetPassword({ email, code }: ResetPasswordFormProps) {
+  const { register, handleSubmit, formState } = useForm<ResetPasswordInput>({
+    resolver: zodResolver(ResetPasswordSchema),
+  })
   const navigate = useNavigate()
 
   const mutation = useMutation({
-    mutationFn: ({ newPassword }: { newPassword: string }) =>
-      resetPassword(email, code, newPassword),
+    mutationFn: ({ newPassword }: ResetPasswordInput) => resetPassword(email, code, newPassword),
     onSuccess: () => {
       toast.success('Password updated.')
       navigate('/sign-in', { replace: true })
@@ -20,14 +27,7 @@ export function useResetPassword({ email, code }: ResetPasswordFormProps) {
     },
   })
 
-  const submit = (newPassword: string, confirmPassword: string) => {
-    const result = ResetPasswordSchema.safeParse({ newPassword, confirmPassword })
-    if (!result.success) {
-      toast.error(result.error.issues[0].message)
-      return
-    }
-    mutation.mutate({ newPassword: result.data.newPassword })
-  }
+  const onSubmit = handleSubmit((data) => mutation.mutate(data))
 
-  return { submit, isPending: mutation.isPending }
+  return { register, formState, onSubmit, isPending: mutation.isPending }
 }

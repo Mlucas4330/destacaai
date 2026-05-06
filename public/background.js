@@ -1,4 +1,5 @@
 chrome.runtime.onInstalled.addListener(() => {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
   chrome.contextMenus.create({
     id: 'destacai-capture',
     title: 'Use as job description in DestacAI',
@@ -6,21 +7,21 @@ chrome.runtime.onInstalled.addListener(() => {
   })
 })
 
-chrome.contextMenus.onClicked.addListener((info) => {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'destacai-capture' && info.selectionText) {
     chrome.storage.local.set({ pendingDescription: info.selectionText }, () => {
-      chrome.action.openPopup()
+      chrome.sidePanel.open({ windowId: tab.windowId })
     })
   }
 })
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type !== 'DESTACAI_CAPTURE') return false
 
   const { description } = message.payload
 
   chrome.storage.local.set({ pendingDescription: description }, () => {
-    chrome.action.openPopup()
+    chrome.sidePanel.open({ windowId: sender.tab.windowId })
       .then(() => sendResponse({ ok: true }))
       .catch(() => {
         chrome.action.setBadgeText({ text: '!' })

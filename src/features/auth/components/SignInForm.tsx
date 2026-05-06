@@ -4,12 +4,26 @@ import Input from '@/shared/components/Input'
 import { useSignIn } from '../hooks/useSignIn'
 
 const SignInForm = () => {
-  const { email, setEmail, password, setPassword, submit, isPending } = useSignIn()
+  const { register, formState, onSubmit, isPending } = useSignIn()
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); submit(email, password) }} className='flex flex-col gap-3'>
-      <Input id='email' label='Email' type='email' value={email} onChange={setEmail} autoComplete='email' required />
-      <Input id='password' label='Password' type='password' value={password} onChange={setPassword} autoComplete='current-password' required />
+    <form onSubmit={onSubmit} className='flex flex-col gap-3'>
+      <Input
+        id='email'
+        label='Email'
+        type='email'
+        autoComplete='email'
+        error={formState.errors.email?.message}
+        {...register('email')}
+      />
+      <Input
+        id='password'
+        label='Password'
+        type='password'
+        autoComplete='current-password'
+        error={formState.errors.password?.message}
+        {...register('password')}
+      />
       <div className='flex justify-end'>
         <Link to='/forgot-password' className='text-xs text-navy-muted underline underline-offset-2'>
           Forgot password?
