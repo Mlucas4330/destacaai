@@ -41,31 +41,53 @@
 <body>
 
   <h1>Privacy Policy</h1>
-  <p><small>DestacAI - Last updated: April 2026</small></p>
+  <p><small>DestacAI - Last updated: May 2026</small></p>
 
   <h2>Overview</h2>
+  <p>DestacAI is a Chrome extension that generates ATS-optimized CVs tailored to specific job descriptions. This policy
+    describes what data is collected, where it is stored, and which third parties process it. The extension can be used
+    as a guest (no sign-up) or with a free email/password account.</p>
 
   <h2>Data Collected</h2>
   <p>The following data is stored to operate the extension:</p>
   <ul>
-    <li>Your uploaded CV file (PDF)</li>
-    <li>Saved job descriptions</li>
-    <li>Generated CV content</li>
+    <li>Your uploaded CV file (PDF) and the text extracted from it</li>
+    <li>Saved job descriptions and metadata (title, company, application status)</li>
+    <li>Generated CV content and ATS scores (both uploaded and tailored)</li>
+    <li>Email address and a one-way hash of your password (signed-in users only)</li>
+    <li>CV generation count, used to enforce free-tier limits (resets monthly)</li>
+    <li>A locally-generated guest identifier and the IP address of the request, used only to enforce guest generation
+      limits</li>
+    <li>Stripe customer and subscription identifiers (paid users only — payment card details never touch our servers)
+    </li>
     <li>Extension configuration and preferences</li>
   </ul>
 
   <h2>Data Storage</h2>
-  <p>Data is stored using <strong>chrome.storage.local</strong> and <strong>external database</strong>.</p>
+  <ul>
+    <li><strong>Cloudflare R2</strong> — uploaded and generated PDF files</li>
+    <li><strong>PostgreSQL (Railway)</strong> — accounts, jobs, ATS scores, subscription state</li>
+    <li><strong>Redis (Railway)</strong> — transient job queue for asynchronous CV generation and ATS scoring; entries
+      are removed once a job completes</li>
+    <li><strong>chrome.storage.local</strong> — session token, guest identifier, extension preferences</li>
+  </ul>
 
   <h2>Third-Party Services</h2>
-  <p>When generating a CV, your CV text and the job description are sent to our server for processing.</p>
+  <p>When generating a CV or computing an ATS score, the text of your CV and the job description are sent to the LLM
+    provider. Sign-up and password-reset codes are sent via Brevo. Paid subscriptions are handled by Stripe.</p>
   <ul>
     <li>OpenAI - <a href="https://openai.com/policies/privacy-policy">Privacy Policy</a></li>
+    <li>Brevo - <a href="https://www.brevo.com/legal/privacypolicy/">Privacy Policy</a></li>
+    <li>Stripe - <a href="https://stripe.com/privacy">Privacy Policy</a></li>
+    <li>Cloudflare - <a href="https://www.cloudflare.com/privacypolicy/">Privacy Policy</a></li>
+    <li>Railway - <a href="https://railway.com/legal/privacy">Privacy Policy</a></li>
   </ul>
 
   <h2>Data Retention</h2>
-  <p>Saved jobs and generated CVs are automatically deleted after 10 days. You can manually delete all data at any time
-    via the Settings screen.</p>
+  <p>Guest accounts and all data associated with them (uploaded CV, jobs, generated CVs, ATS scores) are automatically
+    deleted 10 days after creation. Signed-in account data is kept until you delete it: you can remove individual jobs,
+    clear all jobs, or remove your uploaded CV at any time from the Settings screen. Full account deletion is available
+    on request via the contact below.</p>
 
   <h2>Contact</h2>
   <p>For questions about this policy: <a href="mailto:mlucas4330@gmail.com">mlucas4330@gmail.com</a></p>
